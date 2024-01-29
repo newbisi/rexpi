@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rexpi"
+version = "0.0.1"
+authors = [
+  { name="Tobias Jawecki", email="tobias.jawecki@gmail.com" },
+]
+description = "A python package for computing rational approximations to the unitary exponential function with a focus on unitary best approximations."
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+    "scipy"
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+]
+keywords = ["rationa approximation", "best approximation", "unitary", "exponential function"]
+
+[project.urls]
+Homepage = "https://github.com/newbisi/rexpi"
+Issues = "https://github.com/newbisi/rexpi/issues"

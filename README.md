@@ -61,8 +61,6 @@ plt.semilogy(xs,np.abs(err),[-1,1],[errmax,errmax],':')
 - The brib algorithm is based on rational interpolation and the Lawson method is based on minimizing a linearized error. In addition to ideas in[^JS23] to preserve unitarity of such approximations in computer arithmetic, we introduce algorithms to also preserve symmetry in computer arithmetic, i.e., $r(-\mathrm{i} x) = r(\mathrm{i} x)^{-1}$ for $x\in\mathbb{R}$, a property which holds true for the unitary best approximation. Symmetry and unitarity are preserved when computing weights in barycentric rational form and when computing the poles of the constructed barycentric rational function, i.e., poles are computed as real poles or complex conjugate pairs of poles by design.
 - Applications of these algorithms are approximations to the scalar exponential function and approximations to exponentials of skew-Hermitian matrices or the action of such matrix exponentials.
 
-## Some references
-
 [^JSxx]: T. Jawecki and P. Singh. Unitary rational best approximations to the exponential function. *to be published*. preprint available at [https://arxiv.org/abs/2312.13809](https://arxiv.org/abs/2312.13809).
 
 [^JS23]: T. Jawecki and P. Singh. Unitarity of some barycentric rational approximants. *IMA J. Numer. Anal.*, 2023. [doi 10.1093/imanum/drad066](https://doi.org/10.1093/imanum/drad066).

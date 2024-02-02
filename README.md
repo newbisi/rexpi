@@ -63,12 +63,12 @@ plt.semilogy(xs,np.abs(err),[-1,1],[errmax,errmax],':')
 
 [^JSxx]: T. Jawecki and P. Singh. Unitary rational best approximations to the exponential function. *to be published*. preprint available at [https://arxiv.org/abs/2312.13809](https://arxiv.org/abs/2312.13809).
 
-[^JS23]: T. Jawecki and P. Singh. Unitarity of some barycentric rational approximants. *IMA J. Numer. Anal.*, 2023. [doi 10.1093/imanum/drad066](https://doi.org/10.1093/imanum/drad066).
+[^JS23]: T. Jawecki and P. Singh. Unitarity of some barycentric rational approximants. *IMA J. Numer. Anal.*, 2023. [doi:10.1093/imanum/drad066](https://doi.org/10.1093/imanum/drad066).
 
-[^Ho20]: C. Hofreither. An algorithm for best rational approximation based on barycentric rational interpolation. *Numer. Algorithms*, 88(1):365–388, 2021. [doi 10.1007/s11075-020-01042-0](https://doi.org/10.1007/s11075-020-01042-0).
+[^Ho20]: C. Hofreither. An algorithm for best rational approximation based on barycentric rational interpolation. *Numer. Algorithms*, 88(1):365–388, 2021. [doi:10.1007/s11075-020-01042-0](https://doi.org/10.1007/s11075-020-01042-0).
 
-[^NST18]: Y. Nakatsukasa, O. Sète, and L.N. Trefethen. The AAA algorithm for rational approximation. *SIAM J. Sci. Comput.*, 40(3):A1494–A1522, 2018. [doi 10.1137/16M1106122](https://doi.org/10.1137/16M1106122).
+[^NST18]: Y. Nakatsukasa, O. Sète, and L.N. Trefethen. The AAA algorithm for rational approximation. *SIAM J. Sci. Comput.*, 40(3):A1494–A1522, 2018. [doi:10.1137/16M1106122](https://doi.org/10.1137/16M1106122).
 
-[^NT20]: Y. Nakatsukasa and L.N. Trefethen. An algorithm for real and complex rational minimax approximation. *SIAM J. Sci. Comput.*, 42(5):A3157–A3179, 2020. [doi 10.1137/19M1281897](https://doi.org/10.1137/19M1281897).
+[^NT20]: Y. Nakatsukasa and L.N. Trefethen. An algorithm for real and complex rational minimax approximation. *SIAM J. Sci. Comput.*, 42(5):A3157–A3179, 2020. [doi:10.1137/19M1281897](https://doi.org/10.1137/19M1281897).
 
 [^DHT14]: T.A. Driscoll, N. Hale, and L.N. Trefethen, editors. Chebfun Guide. Pafnuty Publications, Oxford, 2014. also available online from [https://www.chebfun.org](https://www.chebfun.org).

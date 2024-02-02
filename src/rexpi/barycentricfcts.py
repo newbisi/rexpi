@@ -15,15 +15,24 @@ class barycentricratfct():
         else:
             return evalr_std(x, y, alpha, beta)
 
-    def getpoles(self,sym=False):
+    def getpoles(self,sym=False,two=True):
         y, wj = self.y, self.beta
         m = len(y)
         if (m<=1):
             return []
-        if sym:
-            return _getpoles_sym(y,wj)
+        if two:
+            # with std eigenvalue problem
+            if sym:
+                return _getpoles2_sym(y,wj)
+            else:
+                return _getpoles2(y,wj)
         else:
-            return _getpoles(y,wj)  
+            # with generalized eigenvalue problem, NST18
+            if sym:
+                return _getpoles_sym(y,wj)
+            else:
+                return _getpoles(y,wj)
+
     def getpartialfractioncoef(self,sym=False):
         y, beta = self.y, self.beta
         if (len(y)<=1):
@@ -50,13 +59,54 @@ def _getpoles(y,wj):
     lam = scipy.linalg.eigvals(E, B)
     lam = lam[np.isfinite(lam)]
     return lam
+def _getpoles_sym(y,b):
+    m = len(y)
+    ij=np.argsort(np.abs(y.imag))
+    b, y = b[ij], y[ij]
+
+    B = np.eye(m+1)
+    B[0,0] = 0
+    E = np.block([[0, b],
+                [np.ones([m,1]), np.diag(y)]])
+    n2 = m - m%2
+    ij=np.zeros(n2,dtype=np.int64)
+    ij[::2]=np.arange(1,n2,2)
+    ij[1::2]=np.arange(0,n2,2)
+    P1=np.eye(n2)+0j
+    P2=P1[ij,:]
+    P=1j*P1-P2
+    Pinv=-0.5*(1j*P1+P2)
+    P1=np.eye(m+1)+0j
+    P1inv=np.eye(m+1)+0j
+    if m%2 == 0:
+        P1[0,0]=(1-1j)/2**0.5
+        P1[1:,1:]=P
+        P1inv[0,0]=(1+1j)/2**0.5
+        P1inv[1:,1:]=Pinv
+    else:
+        P1[0,0]=(-1+1j)/2**0.5
+        P1[1,1]=(-1+1j)/2**0.5
+        P1[2:,2:]=P
+        P1inv[0,0]=-1j*(1-1j)/2**0.5
+        P1inv[1,1]=-1j*(1-1j)/2**0.5
+        P1inv[2:,2:]=Pinv
+    E2x = P1inv.dot(E.dot(P1))
+    if m%2 == 0:
+        lam = scipy.linalg.eigvals(E2x.real, B)
+    else:
+        lam = scipy.linalg.eigvals(E2x.real+E2x.imag, B)
+    lam = lam[np.isfinite(lam)]
+    return lam
+
+
+
 def _getpoles2(y,wj):
-    ak = wj / (wj.sum()).real
+    ak = wj / (wj.sum())
     M = np.diag(y) - np.outer(ak, y)
     lam = scipy.linalg.eigvals(M)
     lam = np.delete(lam, np.argmin(abs(lam)))
     return lam
-def _getpoles_sym(y,wj):        
+def _getpoles2_sym(y,wj):        
     m, n = len(y), len(y)-1
     ij=np.argsort(np.abs(y.imag))
     wj=wj[ij]

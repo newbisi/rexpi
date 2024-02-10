@@ -1,4 +1,4 @@
-# rexpi
+# rexpi [![PyPI version](https://badge.fury.io/py/rexpi.svg)](https://badge.fury.io/py/rexpi)
 *by Tobias Jawecki*
 
 **This package is still under development. Future versions might have different API. The current version is not fully documented.**

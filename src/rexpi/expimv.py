@@ -39,7 +39,7 @@ def evalr_product(op, opinv, v, poles, c0):
     c0 = 1 for unitary best approximation with approximation error<2
     best approximation for skew-Hermitian matrix A with spectrum in i*[-w,w] 
     compute (prod_j (A-conj(sj)*I)*inv(A-sj*I))*v
-    for poles sj in C\R
+    for poles sj in C without imaginary axis
     """
     n = len(poles)
     v2 = v.copy()

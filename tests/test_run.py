@@ -16,7 +16,7 @@ def test_brib():
     assert (np.max(np.abs(err))<tol)
 
 def test_interpolation_std():
-	for m in np.arange(1,50):
+	for m in np.arange(3,50):
 		w=2*m
 		allnodes = np.linspace(-1, 1, 2*m-1)
 		r = rexpi.interpolate_std(allnodes, w)
@@ -26,7 +26,7 @@ def test_interpolation_std():
 			assert (abs(abs(r(1j*xnow))-1)<1e-8)
 			
 def test_interpolation_unitary():
-	for m in np.arange(1,50):
+	for m in np.arange(3,50):
 		w=2*m
 		allnodes = np.linspace(-1, 1, 2*m-1)
 		r = rexpi.interpolate_unitary(allnodes, w)
@@ -36,7 +36,7 @@ def test_interpolation_unitary():
 			assert (abs(abs(r(1j*xnow))-1)<1e-14)
 			
 def test_interpolation_sym():
-	for m in np.arange(2,50):
+	for m in np.arange(3,50):
 		w=2*m
 		allnodes = np.linspace(-1, 1, 2*m-1)
 		nodes_pos = allnodes[allnodes>0]

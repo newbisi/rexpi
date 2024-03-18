@@ -5,6 +5,9 @@
 
 Besides new code, this package also contains some routines of the [baryrat](https://github.com/c-f-h/baryrat) package[^Ho20], and variants of the AAA-Lawson[^NST18][^NT20] method which is part of the [Chebfun](http://www.chebfun.org/) package[^DHT14].
 
+## Geting started
+Install the package `python -m pip install rexpi` and run numerical examples from the `/examples` folder.
+
 ## Mathematical problem description
 
 We consider rational approximations $$r(\mathrm{i} x) \approx \mathrm{e}^{\mathrm{i}\omega x},\quad\quad\textrm{for}\quad x\in[-1,1]\quad\textrm{and a frequency}\quad\omega>0,$$ where $r$ is a unitary $(n,n)$-rational function, i.e., $r=p/q$ where $p$ and $q$ are polynomials of degree $\leq n$ and $|r(\mathrm{i} x)|=1$ for $x\in\mathbb{R}$. Our focus is best approximations in a Chebyshev sense which minimize the uniform error $$\max_{x\in[-1,1]}| r(\mathrm{i} x) - \mathrm{e}^{\mathrm{i}\omega x} |.$$
@@ -18,10 +21,6 @@ As a consequence of the equioscillation property, the unitary best approximation
 
 #### Numerical illustration of the corresponding approximation error
 ![approxerror](https://github.com/newbisi/rexpi/blob/main/docs/approxerror.png)
-
-
-## Geting started
-Install the package `python -m pip install .` and run numerical examples from the `/examples` folder.
 
 ## Content
 

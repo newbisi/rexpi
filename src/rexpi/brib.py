@@ -3,18 +3,33 @@ import scipy.linalg
 from .barycentricfcts import *
 from .cheb import PositiveChebyshevNodes
 
-def brib(w = 10.0, n=6, nodes_pos = None, syminterp = False,
-             maxiter=100, tolequi=1e-3, npi = -30, step_factor = 0.1):
-    # best rational interpolation based (brib)
-    # parts of this algorithm are taken from baryrat https://github.com/c-f-h/baryrat
-    # C. Hofreither. An algorithm for best rational approximation based on barycentric rational interpolation.
-    # Numerical Algorithms, 88(1):365--388, 2021. doi 10.1007/s11075-020-01042-0
+import gmpy2
+import flamp
 
-    # n .. compute (n,n) unitary rational best approximation
-    # tol .. stop the iteration 
-    # y or n, mirrored nodes, flat, sorted
-    # w or tol, tol only used to specify w if needed, no stopping criteria
+
+def _exp(z):
+    if isinstance(z, complex):
+        return np.exp(z)
+    elif isinstance(z, gmpy2.mpc):
+        return flamp.exp(z)
+    elif z.dtype=='O':
+        return flamp.exp(z)
+    else:
+        return np.exp(z)
+
+def brib(w = 10.0, n=6, nodes_pos = None, syminterp = False,
+         maxiter=100, tolequi=1e-3, npi = -30, step_factor = 0.1):
+    """
+    best rational interpolation based (brib) approximation, r(ix) \approx exp(iwx)
+    parts of this algorithm are taken from baryrat https://github.com/c-f-h/baryrat
+    C. Hofreither. An algorithm for best rational approximation based on barycentric rational interpolation.
+    Numerical Algorithms, 88(1):365--388, 2021. doi 10.1007/s11075-020-01042-0
     
+    n .. compute (n,n) unitary rational best approximation
+    tol .. stop the iteration 
+    y or n, mirrored nodes, flat, sorted
+    w or tol, tol only used to specify w if needed, no stopping criteria
+    """
     a = -1.0
     a0 = 0.0
     b = 1.0
@@ -34,7 +49,7 @@ def brib(w = 10.0, n=6, nodes_pos = None, syminterp = False,
         return barycentricratfct([0.0],[1.0]), allpoints ,allerr
     ######
     
-    f = lambda x : np.exp(1j*w*x)
+    f = lambda x : _exp(1j*w*x)
     errors = []
     approxerrors = []
     stepsize = np.nan
@@ -75,11 +90,6 @@ def brib(w = 10.0, n=6, nodes_pos = None, syminterp = False,
             #signed_errors /= (-1)**np.arange(len(signed_errors)) * np.sign(signed_errors[0]) * max_err
             #equi_err = abs(1.0 - signed_errors).max()
             break
-        # move nodes
-        # test convergence criteria
-    
-
-        ###########
         
         # global interval size adjustment
         intv_lengths = np.diff(all_nodes_pos)

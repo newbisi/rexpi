@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rexpi"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
   { name="Tobias Jawecki", email="tobias.jawecki@gmail.com" },
 ]
 description = "A python package for computing rational approximations to the unitary exponential function with a focus on unitary best approximations."
-readme = "README.md"
+readme = "README_short.md"
 requires-python = ">=3.7"
 dependencies = [
     "numpy",

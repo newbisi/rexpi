@@ -11,11 +11,13 @@ from scipy.special import jv
 ##########################################################################
 
 def chebyshev(op,t,v,m):
-    # Clenshaw Algorithm
-    # polynomial chebychev approximation return p(A)*v ~ exp(1j*t*A)*v  
-    # op(v) = A*v applies operator on v,
-    # the eigenvalues of A are assumed to be located in [-1,1]
-    # m .. degree of p
+    """
+    Clenshaw Algorithm
+    polynomial chebychev approximation return p(A)*v ~ exp(1j*t*A)*v  
+    op(v) = A*v applies operator on v,
+    the eigenvalues of A are assumed to be located in [-1,1]
+    m .. degree of p
+    """
 
     cm1 = (1j)**m*jv(m,t)
     dkp1 = cm1 * v
@@ -33,10 +35,12 @@ def chebyshev(op,t,v,m):
 ##########################################################################
 
 def evalr_product(op, opinv, v, poles, c0):
-    # c0 = 1 for unitary best approximation with approximation error<2
-    # best approximation for skew-Hermitian matrix A with spectrum in i*[-w,w] 
-    # compute (prod_j (A-conj(sj)*I)*inv(A-sj*I))*v
-    # for poles sj in C\R
+    """
+    c0 = 1 for unitary best approximation with approximation error<2
+    best approximation for skew-Hermitian matrix A with spectrum in i*[-w,w] 
+    compute (prod_j (A-conj(sj)*I)*inv(A-sj*I))*v
+    for poles sj in C\R
+    """
     n = len(poles)
     v2 = v.copy()
     for s in poles:
@@ -48,10 +52,13 @@ def evalr_product(op, opinv, v, poles, c0):
 ##########################################################################
 ##########################################################################
 
-def evalr_partialfraction(opinv, v, c0, coef, poles):
-    y2 = c0*v
+def evalr_partialfraction(opinv, v, c0, coef, poles, v0=None):
+    if v0 is None:
+        v0 = v+0j
+    y2 = c0*v0
     for (c,s) in zip(coef,poles):
-        y2 = y2 + c*opinv(s,v)
+        psi=opinv(s,v)
+        y2 += c*psi
     return y2
 
    

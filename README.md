@@ -32,7 +32,7 @@ import rexpi
 n=10
 tol=1e-6
 w = rexpi.buerrest_getw(n, tol)
-r, _, _ = rexpi.brib(w,n)
+r, _ = rexpi.brib(w,n)
 xs = np.linspace(-1,1,5000)
 err = r(1j*xs)-np.exp(1j*w*xs)
 errmax = np.max(np.abs(err))

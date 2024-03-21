@@ -18,11 +18,9 @@ Following a recent work[^JSxx], the unitary best approximation to $\mathrm{e}^{\
 
 As a consequence of the equioscillation property, the unitary best approximation attains $2n+1$ points of interpolation $x_1 <\ldots < x_{2n+1}$ in the sense of $r(\mathrm{i} x_j) = \mathrm{e}^{\mathrm{i}\omega x_j}$. The existence of such interpolation nodes motivates the `brib` algorithm introduced in the present package - a modified BRASIL algorithm which aims to compute a uniform best approximation by rational interpolation and by iteratively adapting the underlying interpolation nodes. In addition, the present package also provides a variant of the AAA-Lawson method to compute approximations to $\mathrm{e}^{\mathrm{i}\omega x}$. It has been shown recently in[^JS23] that rational interpolants and rational approximations constructed by the AAA-Lawson algorithm are unitary, and thus, these approaches fit well to compute unitary rational best approximations.
 
-#### Numerical illustration of the equioscillating phase error
-![phaseerror](https://github.com/newbisi/rexpi/blob/main/docs/phaseerror.png)
-
-#### Numerical illustration of the corresponding approximation error
-![approxerror](https://github.com/newbisi/rexpi/blob/main/docs/approxerror.png)
+#### Numerical illustration of the equioscillating phase error and the approximation error
+To generate these plots we used the `brib` algorithm with $n=4$ and $\omega=2.65$.
+![errors](https://github.com/newbisi/rexpi/blob/main/docs/errors.png)
 
 ## Content
 

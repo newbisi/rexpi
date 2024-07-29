@@ -12,7 +12,7 @@ Install the package `python -m pip install rexpi` and run numerical examples fro
 
 ## Best approximations and equioscillating phase errors
 
-Following a recent work[^JSxx], for $\omega\in(0,\pi(n+1))$ the unitary best approximation to $\mathrm{e}^{\mathrm{i}\omega x}$ is uniquely characterized by an equioscillating phase error. In particular, unitary rational functions are of the form $r(\mathrm{i} x) = \mathrm{e}^{\mathrm{i}g(x)}$ for $x\in\mathbb{R}$ where $g$ is a phase function, and $g(x) - \omega x$ is the phase error of $r(\mathrm{i} x) \approx \mathrm{e}^{\mathrm{i}\omega x}$. 
+Following a recent work[^JSxx], for $\omega\in(0,\pi(n+1))$ the unitary best approximation to $\mathrm{e}^{\mathrm{i}\omega x}$ is uniquely characterized by an equioscillating phase error. In particular, unitary rational functions are of the form $r(\mathrm{i} x) = \mathrm{e}^{\mathrm{i}g(x)}$ for $x\in\mathbb{R}$ where $g$ is a phase function, and $g(x) - \omega x$ is the phase error of $r(\mathrm{i} x) \approx \mathrm{e}^{\mathrm{i}\omega x}$.
 The phase error equioscillates at $2n+2$ nodes $\eta_1< \eta_2< \ldots <\eta_{2n+2}$ if $g(\eta_j) - \omega \eta_j = (-1)^{j+1} \max_{x\in[-1,1]}| g(x) - \omega x |$ for $j=1,\ldots,2n+2$.
 
 E.g. the phase and approximation error of the unitary rational best approximation for $n=4$ and $\omega=2.65$ computed by the `brib` algorithm.
@@ -53,6 +53,19 @@ r, _, _ = rexpi.brib(w,n)
 ```
 - The `brib` and `linearizedLawson` algorithms also utilize ideas presented in[^JS23] to preserve unitarity in computer arithmetic and to reduce computational cost. In particular, when computing approximations based on interpolation or on minimizing a linearized error.
 - Applications of unitary best approximations to $\mathrm{e}^{\mathrm{i}\omega x}$ are approximations to the scalar exponential function and approximations to exponentials of skew-Hermitian matrices or the action of such matrix exponentials for numerical time integration, see `examples/ex5_matrixexponential.ipynb`.
+
+## Citing `rexpi`
+
+A full documentation of this package is currently not available. If you use unitary rational best approximations for your scientific publication, please cite `Unitary rational best approximations to the exponential function` by Jawecki, T. and Singh, P.,
+```
+@unpublished{JS23a,
+  author = {Jawecki, T. and Singh, P.},
+  title = {Unitary rational best approximations to the exponential function},
+  eprint = {2312.13809},
+  year = 2023,
+  note = {preprint at https://arxiv.org/abs/2312.13809}
+}
+```
 
 [^JSxx]: T. Jawecki and P. Singh. Unitary rational best approximations to the exponential function. *to be published*. preprint available at [https://arxiv.org/abs/2312.13809](https://arxiv.org/abs/2312.13809).
 

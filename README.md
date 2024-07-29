@@ -13,8 +13,9 @@ Install the package `python -m pip install rexpi` and run numerical examples fro
 ## Best approximations and equioscillating phase errors
 
 Following a recent work[^JSxx], for $\omega\in(0,\pi(n+1))$ the unitary best approximation to $\mathrm{e}^{\mathrm{i}\omega x}$ is uniquely characterized by an equioscillating phase error. In particular, unitary rational functions are of the form $r(\mathrm{i} x) = \mathrm{e}^{\mathrm{i}g(x)}$ for $x\in\mathbb{R}$ where $g$ is a phase function, and $g(x) - \omega x$ is the phase error of $r(\mathrm{i} x) \approx \mathrm{e}^{\mathrm{i}\omega x}$. 
-The phase error equioscillates at $2n+2$ nodes $\eta_1< \eta_2< \ldots <\eta_{2n+2}$ if $$g(\eta_j) - \omega \eta_j = (-1)^{j+1} \max_{x\in[-1,1]}| g(x) - \omega x |,\quad\quad j=1,\ldots,2n+2.$$
-E.g. the phase and approximation error of the unitary rational best approximation for $n=4$ and $\omega=2.65$ generate by our `brib` algorithm.
+The phase error equioscillates at $2n+2$ nodes $\eta_1< \eta_2< \ldots <\eta_{2n+2}$ if $g(\eta_j) - \omega \eta_j = (-1)^{j+1} \max_{x\in[-1,1]}| g(x) - \omega x |$ for $j=1,\ldots,2n+2$.
+
+E.g. the phase and approximation error of the unitary rational best approximation for $n=4$ and $\omega=2.65$ computed by the `brib` algorithm.
 ![errors](https://github.com/newbisi/rexpi/blob/main/docs/errors.png)
 
 ## Content

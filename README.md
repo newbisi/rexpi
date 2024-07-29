@@ -1,7 +1,18 @@
 # rexpi [![PyPI version](https://badge.fury.io/py/rexpi.svg)](https://badge.fury.io/py/rexpi)
 *by Tobias Jawecki*
 
-A Python package providing algorithms to compute unitary $(n,n)$-rational best approximations $r(\mathrm{i} x) \approx \mathrm{e}^{\mathrm{i}\omega x}$, for $x\in[-1,1]$ and a frequency $\omega>0$. Unitary $(n,n)$-rational functions correspond to rational functions $r=p/q$ where $p$ and $q$ are polynomials of degree $\leq n$ with $|r(\mathrm{i} x)|=1$ for $x\in\mathbb{R}$. Our focus is best approximations in a Chebyshev sense which minimize the uniform error $\max_{x\in[-1,1]}| r(\mathrm{i} x) - \mathrm{e}^{\mathrm{i}\omega x} |$.
+A Python package providing algorithms to compute unitary $(n,n)$-rational best approximations
+```math
+r(\mathrm{i} x) \approx \mathrm{e}^{\mathrm{i}\omega x},\qquad\text{for $x\in[-1,1]$ and a frequency $\omega>0$}.
+```
+Unitary $(n,n)$-rational functions correspond to rational functions $r=p/q$ where $p$ and $q$ are polynomials of degree $\leq n$ with
+```math
+|r(\mathrm{i} x)|=1,\qquad \text{for $x\in\mathbb{R}$}.
+```
+Our focus is best approximations in a Chebyshev sense which minimize the uniform error
+```math
+\max_{x\in[-1,1]}| r(\mathrm{i} x) - \mathrm{e}^{\mathrm{i}\omega x} |.
+```
 
 Besides new code, this package also contains some routines of the [baryrat](https://github.com/c-f-h/baryrat) package[^Ho20], and variants of the AAA-Lawson[^NST18][^NT20] method which is part of the [Chebfun](http://www.chebfun.org/) package[^DHT14].
 

@@ -50,7 +50,7 @@ tol = 1e-6
 w = rexpi.buerrest_getw(n, tol)
 r, _, _ = rexpi.brib(w,n)
 ```
-
+- The `brib` and `linearizedLawson` algorithms also utilize ideas presented in[^JS23] to preserve unitarity in computer arithmetic and to reduce computational cost. In particular, when computing approximations based on interpolation or on minimizing a linearized error.
 - Applications of unitary best approximations to $\mathrm{e}^{\mathrm{i}\omega x}$ are approximations to the scalar exponential function and approximations to exponentials of skew-Hermitian matrices or the action of such matrix exponentials for numerical time integration, see `examples/ex5_matrixexponential.ipynb`.
 
 [^JSxx]: T. Jawecki and P. Singh. Unitary rational best approximations to the exponential function. *to be published*. preprint available at [https://arxiv.org/abs/2312.13809](https://arxiv.org/abs/2312.13809).

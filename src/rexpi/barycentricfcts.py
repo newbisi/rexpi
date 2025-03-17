@@ -1,27 +1,26 @@
 import numpy as np
 import scipy.linalg
 
+import gmpy2
 import flamp
 
 class barycentricratfct():
     def __init__(self, y, b, alpha = None):
         self.y, self.beta = y, b
         self.alpha = alpha
-    def __call__(self, x, usesym = False):
+    def __call__(self, x, usesym = False, oniR = False):
         y, beta, alpha = self.y, self.beta, self.alpha
-        if alpha is None:
-            if usesym:
-                return _evalr_unisym(x, y, beta)
-            else:
-                return evalr_unitary(x, y, beta)
+        if usesym:
+            return _evalr_unisym(x, y, beta)
+        elif oniR:
+            return evalr_unitary_oniR(x, y, beta)
         else:
-            return evalr_std(x, y, alpha, beta)
+            return evalr(x, y, beta, alpha)
 
     def getpoles(self,sym=False,withgenEig=True):
         y, wj = self.y, self.beta
         m = len(y)
-        if (m<=1):
-            return []
+        if (m<=1): return []
         if (wj.dtype=='complex128' and withgenEig):
             # with generalized eigenvalue problem, Kle12, NST18
             if sym:
@@ -79,12 +78,9 @@ class barycentricratfct():
         '''
         return support nodes and coefficients of r in barycentric rational form
         '''
-        if self.alpha is None:
-            return self.y, self.beta
-        else:
-            return self.y, self.beta, self.alpha
+        return self.y, self.beta, self.alpha
             
-def _mpc_to_numpy(a):
+def mpc_to_numpy(a):
     return np.array([float(z.real)+1j*float(z.imag) for z in a])
 def _nullspace(A):
     '''
@@ -96,10 +92,11 @@ def _nullspace(A):
         Q, _ = flamp.qr(A.T, mode='full')
         return Q[:, -1].conj()
     else:
-        #[_,_,V]=np.linalg.svd(A,full_matrices=True)
-        #return V[-1,:]
         Q, _ = scipy.linalg.qr(A.T, mode='full')
         return Q[:, -1].conj()
+    # alternative option
+    # [U,S,V]=np.linalg.svd(A,full_matrices=True)
+    # gam = V[-1,:]
 def _rotvecsLoewner(x):
     if x.dtype=='O':
         # gmpy2 expm1 not implemented for complex arguments
@@ -117,18 +114,64 @@ def _rotvecsLoewner(x):
         R = Fmo/abs(Fmo)
         return R.real, R.imag
 def _expm1(z):
+    """
+    return exp(z)-1
+    """
     if z.dtype=='O':
         return flamp.exp(z)-1
     else:
-        return np.expm1(z) # 1 - F.conj()
+        return np.expm1(z)
+def exp_mp(z):
+    return _exp(z) 
+def _exp(z):
+    if isinstance(z, complex):
+        return np.exp(z)
+    elif isinstance(z, gmpy2.mpc):
+        return flamp.exp(z)
+    elif z.dtype=='O':
+        return flamp.exp(z)
+    else:
+        return np.exp(z)
+def _log(z):
+    if isinstance(z, complex):
+        return np.log(z)
+    elif z.dtype=='O':
+        return flamp.log(z)
+    else:
+        return np.log(z)
+def log_mp(z):
+    return _log(z)
+_flampangle = np.vectorize(gmpy2.phase, otypes=[object])
+def _angle(z):
+    if isinstance(z, complex):
+        return np.angle(z)
+    elif isinstance(z, gmpy2.mpc):
+        return _flampangle(z)
+    elif z.dtype=='O':
+        return _flampangle(z)
+    else:
+        return np.angle(z)
+def angle_mp(z):
+    return _angle(z)
+def _solve(A, b):
+    if A.dtype=='object':
+        return flamp.lu_solve(A, b)
+    else:
+        return np.linalg.solve(A, b)
+def solve_mp(A, b):
+    return _solve(A, b)
+
 def _eigvals(A):
+    """
+    return eigenvalues of a matrix A
+    """
     if A.dtype=='O':
         return flamp.eig(A, left=False, right=False)
     else:
         return scipy.linalg.eigvals(A)
 
         
-def _getpoles_geneig(y,wj):
+def _getpoles_geneig(y, wj):
     """
     Klein thesis 2012 and NST18
     """
@@ -140,7 +183,7 @@ def _getpoles_geneig(y,wj):
     lam = scipy.linalg.eigvals(E, B)
     lam = lam[np.isfinite(lam)]
     return lam
-def _getpoles_geneig_sym(y,b):
+def _getpoles_geneig_sym(y, b):
     """
     symmetrized version of generalized eigenvalue problem
     """
@@ -169,7 +212,7 @@ def _getpoles_geneig_sym(y,b):
     lam = lam[np.isfinite(lam)]
     return lam
     
-def _getpoles_stdeig(y,wj):
+def _getpoles_stdeig(y, wj):
     """
     compute poles using the approach of Kno08, with standard eigenvalue problem
     """
@@ -178,7 +221,7 @@ def _getpoles_stdeig(y,wj):
     lam = _eigvals(M)
     lam = np.delete(lam, np.argmin(abs(lam)))
     return lam
-def _getpoles_stdeig_sym(y,wj):
+def _getpoles_stdeig_sym(y, wj):
     """
     symmetrized version of _getpoles_stdeig
     can be used with (flamp datatypes)
@@ -208,15 +251,15 @@ def _getpoles_stdeig_sym(y,wj):
         lam = np.delete(lam, np.argmin(abs(lam)))
     return lam
 
-def interpolate_std(allnodes, omega):
+def interpolate_std(allnodes, omega=1):
     """
-    allnodes are 2n+1 nodes on the real axis
-    interpolates exp(1j*omega*x) for x <- allnodes
+    allnodes are 2n+1 distinct nodes on the real axis
+    interpolates exp(1j*x) for x <- allnodes
     """
     y = allnodes[::2]
     xs = allnodes[1::2]
-    F = np.exp(1j*omega*xs)
-    f = np.exp(1j*omega*y)
+    F = _exp(1j*omega*xs)
+    f = _exp(1j*omega*y)
     C = 1./(xs[:,None]-y)
     L = F[:,None]*C-C*f[None,:]
     wjs = _nullspace(L)
@@ -225,14 +268,18 @@ def interpolate_std(allnodes, omega):
     alpha = f*wjs
     return barycentricratfct(1j*y,wjs,alpha=alpha)
 
-def interpolate_unitary(allnodes, omega):
+def interpolate_unitary(allnodes, omega=1):
     """
-    allnodes are 2n+1 nodes on the real axis
+    allnodes are 2n+1 distinct nodes on the real axis
     interpolates exp(1j*omega*x) for x <- allnodes
+    from allnodes nodes choose
+    n nodes as 'test nodes' x
+    n+1 nodes as 'support nodes' y
+    interpolant r has degree n
     """
     y=allnodes[::2]
     xs=allnodes[1::2]
-    n = len(xs)
+    
     # nodes_pos are all strictly positive nodes
     n = len(y)-1 # total number of nodes is 2n+1 <- always odd!!
 
@@ -244,54 +291,49 @@ def interpolate_unitary(allnodes, omega):
     
     A = Ri[:,None]*C*Kr[None,:] - Rr[:,None]*C*Ki[None,:]
     v0 = _nullspace(A)
-    b = (-Ki+1j*Kr)*v0
+    b = (-Ki+1j*Kr)*v0 # iKw
     if n%2==1: b*=1j
-    return barycentricratfct(1j*y,b)
+    alpha = (-1)**n*b.conj()
+    return barycentricratfct(1j*y,b,alpha=alpha)
 
-def interpolate_unitarysym(nodes_pos, omega):
+def interpolate_unitarysym(nodes_pos, omega=1):
     """
-    nodes_pos are all strictly positive and real nodes, total number of nodes is 2n+1 <- always odd!!
-    thus, zero is always in the set of interpolation nodes
+    nodes_pos are n strictly positive, distinct and real-valued nodes, total number of nodes is 2n+1 <- always odd!!
+    thus, zero is always in the set of interpolation nodes but not in nodes_pos
     """
     n = len(nodes_pos)
-    m = n+1
+    zero = 0*nodes_pos[0]
 
     # of 2n+1 nodes, n+1 are support nodes
     ys_pos = nodes_pos[(n+1)%2::2]
     # of 2n+1 nodes, n are test nodes
     xs_pos = nodes_pos[n%2::2]
-        
-    Fmo = -_expm1(-1j*omega*xs_pos)
-    Fmo[Fmo == 0.0] = 1j
-    Rz = Fmo/abs(Fmo)
-    (Rr, Ri) = (Rz.real, Rz.imag)
     
-    Fmo = -_expm1(-1j*omega*ys_pos)
-    Fmo[Fmo == 0.0] = 1j
-    Kz = Fmo/abs(Fmo)
-    (Kr, Ki) = (Kz.real, Kz.imag)
+    Rr, Ri = _rotvecsLoewner(omega*xs_pos)
+    Kr, Ki = _rotvecsLoewner(omega*ys_pos)
     
     C2 = 1./(xs_pos[:,None]-ys_pos[None,:])
     C2m = 1./(xs_pos[:,None]+ys_pos[None,:])
     
     B1 = Ri[:,None]*C2*Kr[None,:] - Rr[:,None]*C2*Ki[None,:]
     B2 = Ri[:,None]*C2m*Kr[None,:] + Rr[:,None]*C2m*Ki[None,:]
-    if (m%2 == 1):
+    if ((n+1)%2 == 1):
         b0 = (Rr/xs_pos)[:,None] # no minus sign needed here since we also remove minus below
         B = np.concatenate((b0, B1 - B2), axis=1)
     else:
         B = B1 + B2
     v0 = _nullspace(B) # nullspace
-    if (m%2 == 1):
+    if ((n+1)%2 == 1):
         # n%2==0
         # Bm has k x k+1 dimensional and always has non-trivial nullspace, no need to look at Bp !!
-        b2sub = 1j*Kz*v0[1:]
+        # b2sub = 1j*Kz*v0
+        b2sub = (1j*Kr*v0[1:] - Ki*v0[1:])
         b = np.concatenate(([v0[0]], b2sub, b2sub.conj()))
-        y = np.concatenate(([0], ys_pos, -ys_pos))
+        y = np.concatenate(([zero], ys_pos, -ys_pos))
     else:
         # Bp has k x k+1 dimensional and always has non-trivial nullspace, no need to look at Bm !!
         # b2sub = 1j*Kz*v0         #b = 1j*np.concatenate((b2sub, -b2sub.conj()))
-        b2sub = -Kz*v0
+        b2sub = -(Kr*v0 + 1j*Ki*v0)
         b = np.concatenate((b2sub, b2sub.conj()))
         y = np.concatenate((ys_pos, -ys_pos))
     return barycentricratfct(1j*y,b)
@@ -300,7 +342,7 @@ def minlin_nonint_std(x, y, w, C=None, B=None, wt=None):
     N = len(x)
     xs = np.concatenate((x,y))
     n, m = len(xs), len(y)
-    F = np.exp(1j*w*xs)
+    F = _exp(1j*w*xs)
     if C is None:
         # Cauchy matrix
         C = np.zeros([n,m])
@@ -314,24 +356,25 @@ def minlin_nonint_std(x, y, w, C=None, B=None, wt=None):
     else:
         A=B
     [U,S,V]=np.linalg.svd(A, full_matrices=False)
+    sval = S[-1]
     wa = V[-1,:m].conj()
     wb = V[-1,m:].conj()
     N = np.dot(C,wa)
     D = np.dot(C,wb)
-    return [N/D-F, C, B, barycentricratfct(1j*y, 1j*wb, alpha = 1j*wa)]
+    return [N/D-F, sval, C, B, barycentricratfct(1j*y, 1j*wb, alpha = 1j*wa)]
     
 def minlin_nonint_unitary(x, y, w, C=None, B=None, wt=None):
     N = len(x)
     xs = np.concatenate((x,y))
     n, m = len(xs), len(y)
-    F = np.exp(1j*w*xs)
+    F = _exp(1j*w*xs)
     if C is None:
         # Cauchy matrix
         C = np.zeros([n,m])
         C[:N,:] = 1./(x[:,None]-y)
         C[N:,:] = np.eye(m)
     if B is None:
-        Fmo = 1.0 - np.exp(-1j*w*xs[:,None]) # 1 - F.conj()
+        Fmo = 1.0 - _exp(-1j*w*xs[:,None]) # 1 - F.conj()
         Fmo[Fmo == 0.0] = 1j
         Rz = Fmo/abs(Fmo)
         (Rr, Ri) = (Rz.real, Rz.imag)
@@ -341,101 +384,77 @@ def minlin_nonint_unitary(x, y, w, C=None, B=None, wt=None):
     else:
         A=B
     [U,S,V]=np.linalg.svd(A, full_matrices=False)
+    sval = 2**0.5*S[-1]
     gam = V[-1,:]
     b = (gam[0:m]-1j*gam[m:])/np.sqrt(2.0)
     D = np.dot(C,b)
     N = D.conj()
     wjs = b
-    return [N/D-F, C, B, barycentricratfct(1j*y, 1j*b)]
+    return [N/D-F, sval, C, B, barycentricratfct(1j*y, 1j*b)]
     
-
-def evalr_std(x, yj, alpha, beta):
-    xv = np.asanyarray(x).ravel()
-    D = xv[:,None] - yj[None,:]
-    # find indices where x is exactly on a node
-    (node_xi, node_zi) = np.nonzero(D == 0)
-    one = 1.0
-    if len(node_xi) == 0:       # no zero divisors
-        C = np.divide(one, D)
-        numx = C.dot(alpha)
-        denomx = C.dot(beta)
-        r = numx / denomx
-    else:
-        # set divisor to 1 to avoid division by zero
-        D[node_xi, node_zi] = one
-        C = np.divide(one, D)
-        numx = C.dot(alpha)
-        denomx = C.dot(beta)
-        r = numx / denomx
-        r[node_xi] = alpha[node_zi]/beta[node_zi]
-
-    if np.isscalar(x):
-        return r[0]
-    else:
-        r.shape = np.shape(x)
-        return r
-
-def evalr_unitary(z, zj, beta):
+def evalr(z, zj, beta, alpha = None):
     """
-    evaluate r(z) for unitary r=d*/d with weights alpha=-beta*
+    evaluate z -> r(z) for weights alpha, beta
+    or only beta and alpha = (-1)**(m-1)*beta.conj() for the unitary casy r=d*/d 
     """
     m = len(zj)
+    if alpha is None: alpha = (-1)**(m-1)*beta.conj()
+
     zv = np.asanyarray(z).ravel()
     D = zv[:,None] - zj[None,:]
+    
     # find indices where x is exactly on a node
     (node_xi, node_zi) = np.nonzero(D == 0)
     one = beta[0]*0+1.0
-    alpha = (-1)**(m-1)*beta.conj()
-    if len(node_xi) == 0:       # no zero divisors
-        C = np.divide(one, D)
-        numx = C.dot(alpha)
-        denomx = C.dot(beta)
-        r = numx / denomx
-    else:
-        # set divisor to 1 to avoid division by zero
-        D[node_xi, node_zi] = one
-        C = np.divide(one, D)
-        numx = C.dot(alpha)
-        denomx = C.dot(beta)
-        r = numx / denomx
-        r[node_xi] = alpha[node_zi]/beta[node_zi]
+    D[node_xi, node_zi] = one
 
-    if np.isscalar(z):
-        return r[0]
-    else:
-        r.shape = np.shape(z)
-        return r
-def evalr_unitary_oniR(z, zj, wj):
-    """
-    evaluate r(z) for unitary r=d*/d with weights alpha=-beta*
-    """
-    zv = np.asanyarray(z).ravel()
+    # beta is scaled by 1j for odd n=m-1
+    #alpha = (-1)**(m-1)*beta.conj()
+    
+    C = np.divide(one, D)
+    numx = C.dot(alpha)
+    denomx = C.dot(beta)
+    r = numx / denomx
+    
+    r[node_xi] = alpha[node_zi]/beta[node_zi]
 
-    D = zv[:,None] - zj[None,:]
+    if np.isscalar(z): return r[0]
+    r.shape = np.shape(z)
+    return r
+    
+def evalr_unitary_oniR(x, zj, wj):
+    """
+    evaluate x -> r(ix) for unitary r=d*/d with weights alpha = (-1)**(m-1)*beta*
+    currently only works for numpy standard dtypes
+    """
+    m=len(zj)
+    xv = np.asanyarray(x).ravel()
+    xj = zj.imag
+    D = xv[:,None] - xj[None,:]
+    one = 1.0
+    
     # find indices where x is exactly on a node
     (node_xi, node_zi) = np.nonzero(D == 0)
+    # set divisor to 1 to avoid division by zero
+    D[node_xi, node_zi] = one
     
-    one = 1.0    
-    with np.errstate(divide='ignore', invalid='ignore'):
-        if len(node_xi) == 0:       # no zero divisors
-            C = np.divide(one, D)
-            denomx = C.dot(wj)
-            r = np.conj(denomx) / denomx
-        else:
-            # set divisor to 1 to avoid division by zero
-            D[node_xi, node_zi] = one
-            C = np.divide(one, D)
-            denomx = C.dot(wj)
-            r = denomx.conj() / denomx
-            # fix evaluation at support nodes
-            r[node_xi] = -np.conj(wj[node_zi])/wj[node_zi]
+    #with np.errstate(divide='ignore', invalid='ignore'):
+    #if len(node_xi) == 0:       # no zero divisors
+    C = np.divide(one, D)
+    denomx = C.dot(wj)
+    r = (-1)**(m-1)*np.conj(denomx) / denomx
 
-    if np.isscalar(z):
-        return r[0]
-    else:
-        r.shape = np.shape(z)
-        return r
+    # fix evaluation at support nodes
+    r[node_xi] = (-1)**(m-1)*np.conj(wj[node_zi])/wj[node_zi]
+
+    if np.isscalar(x): return r[0]
+    r.shape = np.shape(x)
+    return r
+    
 def _evalr_unisym(zs, zj, b):
+    """
+    not used recently
+    """
     yj = zj.imag
     zv = np.asanyarray(zs).ravel()
     m = len(yj)

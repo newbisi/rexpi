@@ -1,114 +1,212 @@
 import numpy as np
-import scipy.linalg
 from .barycentricfcts import *
 from .cheb import PositiveChebyshevNodes
 
-import gmpy2
-import flamp
+import time
+import logging
 
 
-def _exp(z):
-    if isinstance(z, complex):
-        return np.exp(z)
-    elif isinstance(z, gmpy2.mpc):
-        return flamp.exp(z)
-    elif z.dtype=='O':
-        return flamp.exp(z)
-    else:
-        return np.exp(z)
-
-def brib(w = 10.0, n=6, nodes_pos = None, syminterp = False,
-         maxiter=100, tolequi=1e-3, npi = -30, step_factor = 0.1):
+def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
+         maxiter=None, tolequi=1e-3,
+         tolstagnation=0, # if devation is smaller than this tol and stagnates, break iteration
+         kstag=10,
+         tolerr=0, #  if error is smaller tolerr and phis are alternating
+         npi=None, # find max
+         optnodesadapt=None, # adapt nodes
+         step_factor=2.2, max_step_size=0.1, hstep=0.1):
     """
     best rational interpolation based (brib) approximation, r(ix) \approx exp(iwx)
     parts of this algorithm are taken from baryrat https://github.com/c-f-h/baryrat
     C. Hofreither. An algorithm for best rational approximation based on barycentric rational interpolation.
     Numerical Algorithms, 88(1):365--388, 2021. doi 10.1007/s11075-020-01042-0
-    
+
     n .. compute (n,n) unitary rational best approximation
     tol .. stop the iteration 
     y or n, mirrored nodes, flat, sorted
     w or tol, tol only used to specify w if needed, no stopping criteria
+    nodes_pos .. initial interpolation nodes, assuming nodes mirrored around zero, only needs nodes>0
+    info[0] ..  INFO = 0: successful termination
+                INFO < 0: illegal value of one or more arguments -- no computation performed
+                INFO > 0: failure in the course of computation 
     """
-    a = -1.0
-    a0 = 0.0
-    b = 1.0
-
     ###### set parameters
-    if nodes_pos is None:
-        nodes_pos = PositiveChebyshevNodes(n)
-    else:
-        nodes_pos = np.sort(nodes_pos[nodes_pos>0].flatten())
-        n = len(nodes_pos)
-    
     if (w >= np.pi*(n+1)):
         # return constant one function
-        print("for w>=(n+1)pi = %f the best approximartion is trivial" % (n+1)*np.pi)
+        logging.warning("for w>=(n+1)pi = %f the best approximartion is trivial" % (n+1)*np.pi)
         allpoints=[[0.0],[0.0]]
         allerr = [2.0]
         return barycentricratfct([0.0],[1.0]), allpoints ,allerr
+        
+    if nodes_pos is None:
+        xi = w/(n+1)/np.pi
+        nodes_pos = (1-xi)*PositiveChebyshevNodes(n) + xi*np.arange(1,n+1)/(n+1)
+        # also test the following set of nodes
+        #linnodes=(np.arange(n)+1)*np.pi
+        #nodes_pos = np.min((linnodes,PositiveChebyshevNodes(n)),0)
+    else:
+        nodes_pos = np.sort(nodes_pos[nodes_pos>0].flatten())
+        n = len(nodes_pos)
+    if maxiter is None: maxiter = 4*n
+    if npi is not None: npiuse = npi
     ######
-    
-    f = lambda x : _exp(1j*w*x)
+    logging.info("start brib: n=%d, w=%f, xi=%.2e, maxiter=%d, tolequi=%.2e", n, w, w/((n+1)*np.pi), maxiter, tolequi)
     errors = []
-    approxerrors = []
+    devs = []
     stepsize = np.nan
     #ni = 1
-    max_step_size=0.1
-    
+    nodes_history = []
+    nodes_history2 = []
+    success = 1
+    timeinterpr = 0
+    timefindmax = 0
+    devstagnation = False
+    besterr = 2
+    besterrdev = 1
+    besterrnodes = []
+    max_err = 2
+    phisignsum = n
+    lastusedcorrection = 0
+    zero = 0*nodes_pos[0]
+    one = zero + 1
     for ni in range(maxiter):
         # compute the new interpolant r
+        nodes_history.append(nodes_pos)
+
+        t1 = time.time()
+        ### rational interpolation
         if syminterp:
             # ypos, xpos, izero
-            r = interpolate_unitarysym(nodes_pos, w)
+            r = interpolate_unitarysym(nodes_pos, omega=w)
         else:
-            allnodes = np.concatenate((-nodes_pos[::-1], [0], nodes_pos))
-            r = interpolate_unitary(allnodes, w)
-    
-        # find nodes with largest error
-        all_nodes_pos = np.concatenate(([0.0], nodes_pos, [1.0]))
-        errfun = lambda x: abs(f(x) - r(1j*x))
+            nodes_all = np.concatenate((-nodes_pos[::-1], [zero], nodes_pos))
+            r = interpolate_unitary(nodes_all, omega=w)
+        timeinterpr += time.time()-t1
 
-        #print(errfun(nodes_pos))
-        if npi > 0:
-            local_max_x, local_max = local_maxima_sample(errfun, all_nodes_pos, npi)
+        nodes_sub = np.concatenate(([zero], nodes_pos, [one]))
+        errfun = lambda x: abs( r(1j*x) - exp_mp(1j*w*x) )
+
+        t1 = time.time()
+        ### find nodes with largest error
+        if npi is None:
+            npiuse = -30 if ((max_err<2)&(phisignsum==0)) else 50
+        if npiuse > 0:
+            local_max_x, local_max = local_maxima_sample(errfun, nodes_sub, npiuse)
         else:
-            local_max_x, local_max = local_maxima_golden(errfun, all_nodes_pos, num_iter=-npi)
-    
-        max_err = local_max.max()
-        #deviation_old = max_err / local_max.min() - 1
-        deviation = 1 - local_max.min() / max_err
-
-
-        errors.append((max_err, deviation, stepsize))
-        approxerrors.append(max_err)
-    
-        converged = (deviation <= tolequi)
-        if converged:
-            # only if converged
-            #signed_errors = np.angle(r(1j*local_max_x)/f(local_max_x))
-            #signed_errors /= (-1)**np.arange(len(signed_errors)) * np.sign(signed_errors[0]) * max_err
-            #equi_err = abs(1.0 - signed_errors).max()
-            break
+            local_max_x, local_max = local_maxima_golden(errfun, nodes_sub, num_iter=-npiuse)
+        timefindmax += time.time()-t1
         
-        # global interval size adjustment
-        intv_lengths = np.diff(all_nodes_pos)
+        max_err = local_max.max()
+        deviation = 1 - local_max.min() / max_err
+        local_max_phi = angle_mp( r(1j*local_max_x)/exp_mp(1j*w*local_max_x) )
+        phisign = np.sign(local_max_phi)
+        phisignsum = np.sum(np.abs((phisign[:-1] + phisign[1:])/2))
 
-        mean_err = np.mean(local_max)
-        max_dev = abs(local_max - mean_err).max()
-        normalized_dev = (local_max - mean_err) / max_dev
-        stepsize = min(max_step_size, step_factor * max_dev / mean_err)
-        scaling = (1.0 - stepsize)**normalized_dev
+        if ((tolstagnation>0)&(max_err<besterr)):
+            besterr = max_err
+            besterrdev = deviation
+            besterrnodes = nodes_pos
+        
+        errors.append((max_err, deviation, lastusedcorrection, phisignsum))
+        devs.append(deviation)
+        nodes_history2.append(local_max_phi)
 
-        intv_lengths *= scaling
-        # rescale so that they add up to b-a again
-        intv_lengths *= 1 / intv_lengths.sum()
-        nodes_pos = np.cumsum(intv_lengths)[:-1] + a0
+        ### test convergence
+        converged = (((deviation <= tolequi)&(phisignsum==0))&(max_err<2))
+        if ni%10==0:
+            logging.info("step %5d, error %.2e, deviation %.2e, alternating %3d",ni, max_err, deviation, int(phisignsum))
+        if converged:
+            success = 0
+            break
+        if ni == maxiter-1:
+            break
 
-    # also return interpolation nodes and equioscillation points 
-    allpoints = [np.concatenate((-local_max_x[::-1], local_max_x)), np.concatenate((-nodes_pos[::-1], [0], nodes_pos))]
-    return r, allpoints, errors
+        errsmall = ((phisignsum==0)&(max_err<tolerr))
+        if errsmall:
+            success = 0
+            break
+            
+        ### if not at last iteratipon, adapt interpolation nodes
+        if optnodesadapt is None:
+            if ((max_err==2)|(phisignsum!=0)):
+                nodes_pos, stepsize = _adaptinodes_BRASIL(nodes_sub, local_max, max_step_size, step_factor)
+                lastusedcorrection=1
+            else:
+                optc = 1 if (deviation<0.1) else 0
+                #optc = 1
+                nodes_pos = _adaptinodes_Maehly_sym(nodes_pos, local_max_x, local_max, optc)
+                lastusedcorrection = 3 + optc/2
+        else:
+            lastusedcorrection = optnodesadapt
+            if optnodesadapt==1:
+                nodes_pos, stepsize = _adaptinodes_BRASIL(nodes_sub, local_max, max_step_size, step_factor)
+            elif optnodesadapt==2:
+                nodes_pos = _adaptinodes_Franke(nodes_pos, local_max_x, local_max, hstep)
+            else:
+                nodes_pos = _adaptinodes_Maehly_sym(nodes_pos, local_max_x, local_max, hstep)
+                
+        # test for stagnation and stop loop if stagnation was detected in the previous iteration
+        if devstagnation:
+            logging.warning("iter %d. deviation stagnated at delta = %.2e before reaching tol" % (ni,deviation))
+            break
+        if ((ni>kstag)&(tolstagnation>0)): devstagnation = (((sum(devs[-kstag:])/kstag)<deviation)&(besterrdev<tolstagnation))
+        if devstagnation: nodes_pos = besterrnodes
+    
+    accuracy = [n, w, max_err] # degree n and accurate on [-w,w] with max_err            
+    nodes_last = [nodes_pos, local_max_x] # also return interpolation nodes and equioscillation points 
+    timings = [timeinterpr, timefindmax]
+    logging.info("done: step %d, error %.2e, deviation %.2e, alternating %d",ni, max_err, deviation, int(phisignsum))
 
+    info = [success, accuracy, nodes_last , errors, nodes_history, nodes_history2, timings]
+    return r, info
+
+def _adaptinodes_BRASIL(nodes_sub, local_max, max_step_size, step_factor):
+    # global interval size adjustment
+    n = len(nodes_sub)
+    intv_lengths = np.diff(nodes_sub)
+
+    mean_err = np.mean(local_max)
+    #sum_err = len(local_max)*mean_err
+    max_dev = abs(local_max - mean_err).max()
+    normalized_dev = (local_max - mean_err) / max_dev
+    stepsize = min(max_step_size, step_factor * max_dev / (n * mean_err))
+    scaling = (1.0 - stepsize)**normalized_dev
+
+    intv_lengths *= scaling
+    # rescale so that they add up to b-a again
+    intv_lengths /= intv_lengths.sum()
+    nodes_pos = np.cumsum(intv_lengths)[:-1]
+    return nodes_pos, stepsize
+def _adaptinodes_Franke(nodes_pos, local_max_x, local_max, hstep):
+    dz = np.diff(local_max)*np.diff(local_max_x)/(np.sum(local_max)/len(local_max))
+    nodes_pos += hstep*dz
+    return nodes_pos
+def _adaptinodes_Maehly(nodes_pos, local_max_x, local_max, useln=True):
+    n=len(nodes_pos)
+    zero = 0*nodes_pos[0]
+    alleps = np.concatenate((local_max[::-1],local_max))
+    allx = np.concatenate((-local_max_x[::-1], local_max_x))
+    ally = np.concatenate((-nodes_pos[::-1], [zero], nodes_pos))
+    if useln:
+        b = log_mp(alleps[1:]/alleps[0])
+    else:
+        b = 2*(alleps[1:]-alleps[0])/(alleps[1:]+alleps[0])
+    M = (allx[0]-allx[1:,None])/((allx[1:,None]-ally)*(allx[0]-ally))
+    dz = solve_mp(M, b)
+    return nodes_pos+dz[n+1:]
+def _adaptinodes_Maehly_sym(xs, local_max_x, local_max, useln=True):
+    n=len(xs)
+    etas, eta0 = local_max_x[:-1,None], local_max_x[-1]
+    ers, er0 = local_max[:-1], local_max[-1]
+    if useln:
+        b = log_mp(ers/er0)
+    else:
+        b = 2*(ers-er0)/(ers+er0)
+    #M = 1/(etas-xs) - 1/(etas**2-xs**2) + 2*xs/(xs**2-eta0**2)
+    #M = 2*xs/(etas**2-xs**2) + 2*xs/(xs**2-eta0**2)
+    M = 2*xs*(etas**2-eta0**2)/((xs**2-eta0**2)*(etas**2-xs**2))
+    dxs = solve_mp(M, b)
+    return xs + dxs
+    
 def _piecewise_mesh(nodes, n):
     # subroutine from https://github.com/c-f-h/baryrat
     # C. Hofreither. An algorithm for best rational approximation based on barycentric rational interpolation.
@@ -278,3 +376,15 @@ def local_maxima_sample(g, nodes, N):
     maxk = vals.argmax(axis=1)
     nn = np.arange(Z.shape[0])
     return Z[nn, maxk], vals[nn, maxk]
+    
+def local_maxima_sample2(g, nodes, N):
+    Z = _piecewise_mesh(nodes, N).reshape((-1, N))
+    valsc = g(Z)
+    vals = abs(valsc)
+    maxk = vals.argmax(axis=1)
+    nn = np.arange(Z.shape[0])
+
+    sigp = np.sign(angle_mp(valsc))
+    phaseerrs=np.sum(abs((sigp[:,1:]-sigp[:,:-1])/2), axis=1, dtype=np.int32)
+    return Z[nn, maxk], vals[nn, maxk], phaseerrs
+

@@ -34,14 +34,16 @@ def chebyshev(op,t,v,m):
 ##########################################################################
 ##########################################################################
 
-def evalr_product(op, opinv, v, poles, c0):
+def evalr_product(op, opinv, v, poles, c0=None):
     """
     c0 = 1 for unitary best approximation with approximation error<2
     best approximation for skew-Hermitian matrix A with spectrum in i*[-w,w] 
     compute (prod_j (A-conj(sj)*I)*inv(A-sj*I))*v
     for poles sj in C without imaginary axis
     """
-    n = len(poles)
+    if c0 is None:
+        n = len(poles)
+        c0 = (-1)**n
     v2 = v.copy()
     for s in poles:
         v1 = opinv(s,v2)
@@ -52,9 +54,12 @@ def evalr_product(op, opinv, v, poles, c0):
 ##########################################################################
 ##########################################################################
 
-def evalr_partialfraction(opinv, v, c0, coef, poles, v0=None):
+def evalr_partialfraction(opinv, v, coef, poles, c0=None, v0=None):
     if v0 is None:
         v0 = v+0j
+    if c0 is None:
+        n = len(poles)
+        c0 = (-1)**n
     y2 = c0*v0
     for (c,s) in zip(coef,poles):
         psi=opinv(s,v)

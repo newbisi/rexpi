@@ -126,7 +126,7 @@ def exp_mp(z):
 def _exp(z):
     if isinstance(z, complex):
         return np.exp(z)
-    elif isinstance(z, gmpy2.mpc):
+    elif isinstance(z, gmpy2.mpc)|isinstance(z, gmpy2.mpfr):
         return flamp.exp(z)
     elif z.dtype=='O':
         return flamp.exp(z)
@@ -151,6 +151,15 @@ def _angle(z):
         return _flampangle(z)
     else:
         return np.angle(z)
+def imag_mp(z):
+    if isinstance(z, complex):
+        return z.imag
+    elif isinstance(z, gmpy2.mpc):
+        return z.imag
+    elif z.dtype=='O':
+        return _flampangle(z)
+    else:
+        return z.imag
 def angle_mp(z):
     return _angle(z)
 def _solve(A, b):

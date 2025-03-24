@@ -5,6 +5,10 @@ from .cheb import PositiveChebyshevNodes
 import time
 import logging
 
+def brib_err(n,eo):
+    w = west(n,eo)
+    r, info = brib(w,n)
+    return r, info
 
 def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
          maxiter=None, tolequi=1e-3,
@@ -13,6 +17,7 @@ def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
          tolerr=0, #  if error is smaller tolerr and phis are alternating
          npi=None, # find max
          optnodesadapt=None, # adapt nodes
+         npigolden = -20, npisample=9,
          step_factor=2.2, max_step_size=0.1, hstep=0.1):
     """
     best rational interpolation based (brib) approximation, r(ix) \approx exp(iwx)
@@ -29,13 +34,15 @@ def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
                 INFO < 0: illegal value of one or more arguments -- no computation performed
                 INFO > 0: failure in the course of computation 
     """
+    success = 1
     ###### set parameters
     if (w >= np.pi*(n+1)):
         # return constant one function
         logging.warning("for w>=(n+1)pi = %f the best approximartion is trivial" % (n+1)*np.pi)
         allpoints=[[0.0],[0.0]]
         allerr = [2.0]
-        return barycentricratfct([0.0],[1.0]), allpoints ,allerr
+        success = 0
+        return barycentricratfct([0.0],[1.0]), [success, allpoints ,allerr]
         
     if nodes_pos is None:
         xi = w/(n+1)/np.pi
@@ -55,10 +62,9 @@ def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
     stepsize = np.nan
     #ni = 1
     nodes_history = []
-    nodes_history2 = []
-    success = 1
     timeinterpr = 0
     timefindmax = 0
+    timecorrection = 0
     devstagnation = False
     besterr = 2
     besterrdev = 1
@@ -88,7 +94,8 @@ def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
         t1 = time.time()
         ### find nodes with largest error
         if npi is None:
-            npiuse = -30 if ((max_err<2)&(phisignsum==0)) else 50
+            npiuse = npigolden if ((max_err<2)&(phisignsum==0)) else npisample
+        #logging.info("%d"%npiuse)
         if npiuse > 0:
             local_max_x, local_max = local_maxima_sample(errfun, nodes_sub, npiuse)
         else:
@@ -97,9 +104,8 @@ def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
         
         max_err = local_max.max()
         deviation = 1 - local_max.min() / max_err
-        local_max_phi = angle_mp( r(1j*local_max_x)/exp_mp(1j*w*local_max_x) )
-        phisign = np.sign(local_max_phi)
-        phisignsum = np.sum(np.abs((phisign[:-1] + phisign[1:])/2))
+        local_max_imag = imag_mp( r(1j*local_max_x)/exp_mp(1j*w*local_max_x) )
+        phisignsum = np.sum(local_max_imag*(-1)**(n+1-np.arange(n+1)) < 0)
 
         if ((tolstagnation>0)&(max_err<besterr)):
             besterr = max_err
@@ -108,12 +114,12 @@ def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
         
         errors.append((max_err, deviation, lastusedcorrection, phisignsum))
         devs.append(deviation)
-        nodes_history2.append(local_max_phi)
 
         ### test convergence
         converged = (((deviation <= tolequi)&(phisignsum==0))&(max_err<2))
-        if ni%10==0:
-            logging.info("step %5d, error %.2e, deviation %.2e, alternating %3d",ni, max_err, deviation, int(phisignsum))
+        if True:
+            #ni%10==0:
+            logging.info("step %5d, error %.2e, deviation %.2e, alternating %3d, npiused %+3d, opt %d",ni, max_err, deviation, int(phisignsum), npiuse, lastusedcorrection)
         if converged:
             success = 0
             break
@@ -126,15 +132,19 @@ def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
             break
             
         ### if not at last iteratipon, adapt interpolation nodes
+        t1 = time.time()
         if optnodesadapt is None:
             if ((max_err==2)|(phisignsum!=0)):
                 nodes_pos, stepsize = _adaptinodes_BRASIL(nodes_sub, local_max, max_step_size, step_factor)
                 lastusedcorrection=1
             else:
-                optc = 1 if (deviation<0.1) else 0
-                #optc = 1
-                nodes_pos = _adaptinodes_Maehly_sym(nodes_pos, local_max_x, local_max, optc)
-                lastusedcorrection = 3 + optc/2
+                optc = 1 if (deviation<0.05) else 0
+                if (hstep!=0.1):
+                    nodes_pos = _adaptinodes_Maehly_sym(nodes_pos, local_max_x, local_max, optc)
+                    lastusedcorrection = 3.01 + optc/2
+                else:
+                    nodes_pos = _adaptinodes_MaehlyDunham_sym(nodes_pos, local_max_x, local_max, optc)
+                    lastusedcorrection = 3 + optc/2
         else:
             lastusedcorrection = optnodesadapt
             if optnodesadapt==1:
@@ -143,7 +153,9 @@ def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
                 nodes_pos = _adaptinodes_Franke(nodes_pos, local_max_x, local_max, hstep)
             else:
                 nodes_pos = _adaptinodes_Maehly_sym(nodes_pos, local_max_x, local_max, hstep)
-                
+        timecorrection += time.time()-t1
+        
+        if max(nodes_pos)>1: logging.warning("step %d, opt %f. max interpolation node > 1, %f" % (ni,lastusedcorrection,max(nodes_pos)))
         # test for stagnation and stop loop if stagnation was detected in the previous iteration
         if devstagnation:
             logging.warning("iter %d. deviation stagnated at delta = %.2e before reaching tol" % (ni,deviation))
@@ -153,10 +165,10 @@ def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
     
     accuracy = [n, w, max_err] # degree n and accurate on [-w,w] with max_err            
     nodes_last = [nodes_pos, local_max_x] # also return interpolation nodes and equioscillation points 
-    timings = [timeinterpr, timefindmax]
+    timings = [timeinterpr, timefindmax, timecorrection]
     logging.info("done: step %d, error %.2e, deviation %.2e, alternating %d",ni, max_err, deviation, int(phisignsum))
 
-    info = [success, accuracy, nodes_last , errors, nodes_history, nodes_history2, timings]
+    info = [success, accuracy, nodes_last , errors, nodes_history, timings]
     return r, info
 
 def _adaptinodes_BRASIL(nodes_sub, local_max, max_step_size, step_factor):
@@ -180,24 +192,24 @@ def _adaptinodes_Franke(nodes_pos, local_max_x, local_max, hstep):
     dz = np.diff(local_max)*np.diff(local_max_x)/(np.sum(local_max)/len(local_max))
     nodes_pos += hstep*dz
     return nodes_pos
-def _adaptinodes_Maehly(nodes_pos, local_max_x, local_max, useln=True):
+def _adaptinodes_Maehly(nodes_pos, local_max_x, local_max, useln=1):
     n=len(nodes_pos)
     zero = 0*nodes_pos[0]
     alleps = np.concatenate((local_max[::-1],local_max))
     allx = np.concatenate((-local_max_x[::-1], local_max_x))
     ally = np.concatenate((-nodes_pos[::-1], [zero], nodes_pos))
-    if useln:
+    if useln==1:
         b = log_mp(alleps[1:]/alleps[0])
     else:
         b = 2*(alleps[1:]-alleps[0])/(alleps[1:]+alleps[0])
     M = (allx[0]-allx[1:,None])/((allx[1:,None]-ally)*(allx[0]-ally))
     dz = solve_mp(M, b)
     return nodes_pos+dz[n+1:]
-def _adaptinodes_Maehly_sym(xs, local_max_x, local_max, useln=True):
+def _adaptinodes_Maehly_sym(xs, local_max_x, local_max, useln=1):
     n=len(xs)
     etas, eta0 = local_max_x[:-1,None], local_max_x[-1]
     ers, er0 = local_max[:-1], local_max[-1]
-    if useln:
+    if useln==1:
         b = log_mp(ers/er0)
     else:
         b = 2*(ers-er0)/(ers+er0)
@@ -206,7 +218,48 @@ def _adaptinodes_Maehly_sym(xs, local_max_x, local_max, useln=True):
     M = 2*xs*(etas**2-eta0**2)/((xs**2-eta0**2)*(etas**2-xs**2))
     dxs = solve_mp(M, b)
     return xs + dxs
+def _adaptinodes_MaehlyDunham(nodes_pos, local_max_x, local_max, useln=1):
+    n=len(nodes_pos)
+    zero = 0*nodes_pos[0]
+    alleps = np.concatenate((local_max[::-1],local_max))
+    etas = np.concatenate((-local_max_x[::-1], local_max_x))
+    xs = np.concatenate((-nodes_pos[::-1], [zero], nodes_pos))
+
+    epsgeom = exp_mp(np.mean(log_mp(alleps)))
+    if useln==1:
+        b = log_mp(alleps/epsgeom)
+    else:
+        b = 2*(alleps - epsgeom)/(alleps + epsgeom)
+        
+    Ex = xs[:,None]-etas
+    Xpx = xs[:,None]-xs+np.eye(2*n+1)
+    dzp1 = np.prod(Ex[:,:-1]/Xpx, 1)*Ex[:,-1]
+
+    Xe = etas[:,None]-xs
+    Epe = etas[:,None]-etas+np.eye(2*n+2)
+    Ms = 1/(xs[:,None]-etas)*(b*np.prod(Xe/Epe[:,:-1],1)/Epe[:,-1])
+    dzp2 = np.sum(Ms,1)
+    dz = dzp1*dzp2
+    return nodes_pos+dz[n+1:]
+def _adaptinodes_MaehlyDunham_sym(nodes_pos, local_max_x, local_max, useln=1):
+    n=len(nodes_pos)
+    epsgeom = exp_mp(np.mean(log_mp(local_max)))
+    if useln==1:
+        b = log_mp(local_max/epsgeom)
+    else:
+        b = 2*(local_max - epsgeom)/(local_max + epsgeom)
+        
+    PA = nodes_pos[:,None]**2 - local_max_x[:-1]**2
+    PA /= nodes_pos[:,None]**2 - nodes_pos**2 + 2*np.diag(nodes_pos**2)
+    dz = np.prod(PA, 1)*(nodes_pos**2 - local_max_x[-1]**2)
     
+    PA = 1/(local_max_x[:,None]**2 - local_max_x**2 + 2*np.eye(n+1))
+    PA[:,:-1] *= local_max_x[:,None]**2 - nodes_pos**2
+    prodv = np.prod(PA,1)
+    Ms = (b*prodv) / (nodes_pos[:,None]**2-local_max_x**2)
+    #dzp2 = np.sum(Ms,1)
+    dz *= 2*nodes_pos*np.sum(Ms,1)
+    return nodes_pos+dz
 def _piecewise_mesh(nodes, n):
     # subroutine from https://github.com/c-f-h/baryrat
     # C. Hofreither. An algorithm for best rational approximation based on barycentric rational interpolation.
@@ -221,52 +274,14 @@ def _piecewise_mesh(nodes, n):
         np.linspace(nodes[i], nodes[i+1], n, endpoint=(i==M-2))
         for i in range(M - 1)))
 
-def local_maxima_bisect(g, nodes, num_iter=10):
-    # subroutine from https://github.com/c-f-h/baryrat
-    # C. Hofreither. An algorithm for best rational approximation based on barycentric rational interpolation.
-    # Numerical Algorithms, 88(1):365--388, 2021. doi 10.1007/s11075-020-01042-0
-    L, R = nodes[1:-2], nodes[2:-1]
-    # compute 3 x m array of endpoints and midpoints
-    z = np.vstack((L, (L + R) / 2, R))
-    values = g(z[1])
-    m = z.shape[1]
-
-    for k in range(num_iter):
-        # compute quarter points
-        q = np.vstack(((z[0] + z[1]) / 2, (z[1] + z[2])/ 2))
-        qval = g(q)
-
-        # move triple of points to be centered on the maximum
-        for j in range(m):
-            maxk = np.argmax([qval[0,j], values[j], qval[1,j]])
-            if maxk == 0:
-                z[1,j], z[2,j] = q[0,j], z[1,j]
-                values[j] = qval[0,j]
-            elif maxk == 1:
-                z[0,j], z[2,j] = q[0,j], q[1,j]
-            else:
-                z[0,j], z[1,j] = z[1,j], q[1,j]
-                values[j] = qval[1,j]
-
-    # find maximum per column (usually the midpoint)
-    #maxidx = values.argmax(axis=0)
-    # select abscissae and values at maxima
-    #Z, gZ = z[maxidx, np.arange(m)], values[np.arange(m)]
-    Z, gZ = np.empty(m+2), np.empty(m+2)
-    Z[1:-1] = z[1, :]
-    gZ[1:-1] = values
-    # treat the boundary intervals specially since usually the maximum is at the boundary
-    Z[0], gZ[0] = _boundary_search(g, nodes[0], nodes[1], num_iter=3)
-    Z[-1], gZ[-1] = _boundary_search(g, nodes[-2], nodes[-1], num_iter=3)
-    return Z, gZ
-
 def local_maxima_golden(g, nodes, num_iter):
     # subroutine from https://github.com/c-f-h/baryrat
     # C. Hofreither. An algorithm for best rational approximation based on barycentric rational interpolation.
     # Numerical Algorithms, 88(1):365--388, 2021. doi 10.1007/s11075-020-01042-0
     # vectorized version of golden section search
+    # removed boundary search at left side due to symmetry properties
     golden_mean = (3.0 - np.sqrt(5.0)) / 2   # 0.381966...
-    L, R = nodes[1:-2], nodes[2:-1]     # skip boundary intervals (treated below)
+    L, R = nodes[0:-2], nodes[1:-1]     # skip _right_ boundary interval (treated below)
     # compute 3 x m array of endpoints and midpoints
     z = np.vstack((L, L + (R-L)*golden_mean, R))
     m = z.shape[1]
@@ -301,12 +316,12 @@ def local_maxima_golden(g, nodes, num_iter):
                     z[2,j] = x
 
     # prepare output arrays
-    Z, gZ = np.empty(m+2, dtype=z.dtype), np.empty(m+2, dtype=gB.dtype)
-    Z[1:-1] = z[1, :]
-    gZ[1:-1] = gB
+    Z, gZ = np.empty(m+1, dtype=z.dtype), np.empty(m+1, dtype=gB.dtype)
+    Z[:-1] = z[1, :]
+    gZ[:-1] = gB
     # treat the boundary intervals specially since usually the maximum is at the boundary
     # (no bracket available!)
-    Z[0], gZ[0] = _boundary_search(g, nodes[0], nodes[1], num_iter=3)
+    #Z[0], gZ[0] = _boundary_search(g, nodes[0], nodes[1], num_iter=3)
     Z[-1], gZ[-1] = _boundary_search(g, nodes[-2], nodes[-1], num_iter=3)
     return Z, gZ
 

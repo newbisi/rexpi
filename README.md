@@ -3,11 +3,11 @@
 
 A Python package providing algorithms to compute unitary $(n,n)$-rational best approximations
 ```math
-r(\mathrm{i} x) \approx \mathrm{e}^{\mathrm{i}\omega x},\qquad\text{for $x\in[-1,1]$ and a frequency $\omega>0$}.
+r(\mathrm{i} x) \approx \mathrm{e}^{\mathrm{i}\omega x},\qquad\text{for}~~ x\in[-1,1]~~\text{and a frequency}~~ \omega>0.
 ```
 Unitary $(n,n)$-rational functions correspond to rational functions $r=p/q$ where $p$ and $q$ are polynomials of degree $\leq n$ with
 ```math
-|r(\mathrm{i} x)|=1,\qquad \text{for $x\in\mathbb{R}$}.
+|r(\mathrm{i} x)|=1,\qquad \text{for}~~ x\in\mathbb{R}.
 ```
 Our focus is best approximations in a Chebyshev sense which minimize the uniform error
 ```math

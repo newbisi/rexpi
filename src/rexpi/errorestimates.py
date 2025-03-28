@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.special import lambertw
 
-def errest(n, w, type=None):
+def errest(n, w, type=None, info=0):
     """
     a priori error estimate for unitary best approximation
     using an asymptotic estimate or an estimate based on experimental data
@@ -21,9 +21,11 @@ def errest(n, w, type=None):
             eout, type = erresta, 'asym'
         else:
             eout, type = erreste, 'expe'
-    return eout, {'type': type}
-    
-def west(n, eo, type=None):
+    if info==1:
+        return eout, {'type': type}
+    else:
+        return eout
+def west(n, eo, type=None, info=0):
     """
     a priori estimate for frequency w (frequency can also be understood as a time-step)
     based on an asymptotic estimate or on experimental data
@@ -39,9 +41,12 @@ def west(n, eo, type=None):
             wout, type = _west_asym(n, eo), 'asym'
         else:
             wout, type = _west_expe(n, eo), 'expe'
-    return wout, {'type': type}
+    if info==1:
+        return wout, {'type': type}
+    else:
+        return wout
     
-def nest(w, eo, type=None):
+def nest(w, eo, type=None, info=0):
     """
     a priori estimate for degree n
     based on an asymptotic estimate or on experimental data
@@ -60,7 +65,10 @@ def nest(w, eo, type=None):
             nout, type = nesta, 'asym'
         else:
             nout, type = nestb, 'expe'
-    return nout, {'type': type}
+    if info==1:
+        return nout, {'type': type}
+    else:
+        return nout
 
 # estimates based on asymptotic limits
 def _errest_asym(n, w):

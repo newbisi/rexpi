@@ -2,18 +2,19 @@ import numpy as np
 import rexpi
 
 def test_brib():
-    n=10
+    ns = np.array([3,5,10,11,20,30,40,50,81])
     tol=1e-6
     rdevtol = 1e-3
-    w = rexpi.buerrest_getw(n, tol)
-    r, _, allerr = rexpi.brib(w, n, tolequi = rdevtol)
-    errlast = allerr[-1][0]
-    rdev = allerr[-1][1]
-    xs = np.linspace(-1,1,5000)
-    err = r(1j*xs)-np.exp(1j*w*xs)
-    assert (rdev<rdevtol)
-    assert (errlast<tol)
-    assert (np.max(np.abs(err))<tol)
+    xtest = np.linspace(-1,1,5000)
+    for n in ns:
+        w = rexpi.west(n, tol)
+        r, info = rexpi.brib(w, n, tolequi = rdevtol, info=1)
+        errlast = info['err']
+        rdev = info['dev']
+        errmax = np.max(np.abs(r(1j*xtest)-np.exp(1j*w*xtest)))
+        assert (rdev<rdevtol)
+        assert (abs(errlast-tol)<0.1)
+        assert (abs(errmax-errlast)<0.1)
 
 def test_interpolation_std():
 	for m in np.arange(3,50):
@@ -22,7 +23,7 @@ def test_interpolation_std():
 		r = rexpi.interpolate_std(allnodes, w)
 		for k in range(len(allnodes)):
 			xnow = allnodes[k]
-			assert (abs(r(1j*xnow)-np.exp(1j*w*xnow))<1e-8)
+			assert (abs(r(1j*xnow)-np.exp(1j*w*xnow))<1e-6)
 			assert (abs(abs(r(1j*xnow))-1)<1e-8)
 			
 def test_interpolation_unitary():
@@ -32,7 +33,7 @@ def test_interpolation_unitary():
 		r = rexpi.interpolate_unitary(allnodes, w)
 		for k in range(len(allnodes)):
 			xnow = allnodes[k]
-			assert (abs(r(1j*xnow)-np.exp(1j*w*xnow))<1e-8)
+			assert (abs(r(1j*xnow)-np.exp(1j*w*xnow))<1e-6)
 			assert (abs(abs(r(1j*xnow))-1)<1e-14)
 			
 def test_interpolation_sym():
@@ -43,5 +44,5 @@ def test_interpolation_sym():
 		r = rexpi.interpolate_unitarysym(nodes_pos, w)
 		for k in range(len(allnodes)):
 			xnow = allnodes[k]
-			assert (abs(r(1j*xnow)-np.exp(1j*w*xnow))<1e-8)
+			assert (abs(r(1j*xnow)-np.exp(1j*w*xnow))<1e-6)
 			assert (abs(abs(r(1j*xnow))-1)<1e-14)

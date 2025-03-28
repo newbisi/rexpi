@@ -414,7 +414,7 @@ def evalr(z, zj, beta, alpha = None):
     
     # find indices where x is exactly on a node
     (node_xi, node_zi) = np.nonzero(D == 0)
-    one = beta[0]*0+1.0
+    one = zj[0]*0+1.0
     D[node_xi, node_zi] = one
 
     # beta is scaled by 1j for odd n=m-1

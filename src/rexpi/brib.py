@@ -1,14 +1,12 @@
 import numpy as np
 from .barycentricfcts import *
 from .cheb import PositiveChebyshevNodes
+from .errorestimates import west
 
 import time
 import logging
 
-def brib_err(n,eo):
-    w = west(n,eo)
-    r, info = brib(w,n)
-    return r, info
+
 
 def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
          maxiter=None, tolequi=1e-3,
@@ -99,13 +97,12 @@ def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
         if info>1:timefindmax += time.time()-t1
         
         phisignsumold = phisignsum
-        phasefctexp = r(1j*local_max_x)/exp_mp(1j*w*local_max_x)
-        phisignsum = _phisignsum(n,phasefctexp)
+        
+        phisignsum = _checkangles(r,w,local_max_x)
         if ((npi is None)&((phisignsumold>0)&(phisignsum==0))):
             npiuse = npisample+5
             local_max_x, local_max = local_maxima_sample(errfun, nodes_sub, npiuse)
-            phasefctexp = r(1j*local_max_x)/exp_mp(1j*w*local_max_x)
-            phisignsum = _phisignsum(n,phasefctexp)
+            phisignsum = _checkangles(r,w,local_max_x)
         
         max_err = local_max.max()
         deviation = 1 - local_max.min() / max_err
@@ -193,9 +190,13 @@ def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
         infoout['nodes_history']=nodes_history
     return r, infoout
 
-def _phisignsum(n,x):
-    local_max_imag = imag_mp(x)
-    return np.sum(local_max_imag*(-1)**(n+1-np.arange(n+1)) < 0)
+def _checkangles(r,w,x):
+    # return number of points for which the phase error has 'wrong' sign
+    # sign should be negative at last entries and alternating from there
+    phasefctexp = r(1j*x)/exp_mp(1j*w*x)
+    k = len(x) # k = n+1
+    local_max_imag = imag_mp(phasefctexp)
+    return np.sum(local_max_imag*(-1)**(k-np.arange(k)) < 0)
     
 def _correction_BRASIL(nodes_sub, local_max, max_step_size, step_factor):
     # subroutine motivated by
@@ -415,3 +416,60 @@ def local_maxima_sample(g, nodes, N):
     maxk = vals.argmax(axis=1)
     nn = np.arange(Z.shape[0])
     return Z[nn, maxk], vals[nn, maxk]
+
+def brib_err(n, errob, errsandwich=1,
+             tolequi=1e-3, tolstagnation=0, kstag=10,
+             kiterations=15):
+    """
+    Input: degree n and error objective errob
+    Returns: an approximant with an error and relative deviation which sandwiche the error objective errob as in
+            (1-tolequi)*error < errob < error
+    """
+    goal = np.log10(errob)
+    wa = west(n,errob)
+    r, info = brib(wa,n,info=1, tolequi=tolequi, tolstagnation=tolstagnation, kstag=kstag)
+    erra = (1-0.5*info['dev'])*info['err'] if (errsandwich) else info['err']
+    
+    rescale = erra/errob
+    eo2=errob/rescale
+    wnew = west(n,eo2)
+    r, info = brib(wnew,n,info=1, tolequi=tolequi, tolstagnation=tolstagnation, kstag=kstag)
+    errb = (1-0.5*info['dev'])*info['err'] if (errsandwich) else info['err']
+    
+    if wa<wnew:
+        w1, err1 = wa, erra
+        w2, err2 = wnew, errb
+    else:
+        w1, err1 = wnew, errb 
+        w2, err2 = wa, erra  
+    
+    for iruns in np.arange(kiterations):
+        loge1 = np.log10(err1)
+        loge2 = np.log10(err2)
+        step = (goal-loge1)/(loge2-loge1)
+        wnew = w1+step*(w2-w1)
+        r, info = brib(wnew,n,info=1, tolequi=tolequi, tolstagnation=tolstagnation, kstag=kstag)
+        errl = (1-info['dev'])*info['err']
+        erru = info['err']
+        errnew = (1-0.5*info['dev'])*info['err'] if () else info['err']
+
+        condsandwich = ((errsandwich) & ((errl<errob)&(errob<erru)))
+        condnotsandwich = ((errsandwich!=1) & (abs(errnew-errob)/errnew<tolequi))
+        if (condsandwich) or (condnotsandwich):
+            success = 0
+            return r, success, wnew, info
+            break
+
+        if wnew>w2:
+            w1, err1 = w2, err2
+            w2, err2 = wnew, errnew
+        elif wnew<w1:
+            w2, err2 = w1, err1
+            w1, err1 = wnew, errnew
+        else:
+            if errob < errnew:
+                w2, err2 = wnew, errnew
+            else:
+                w1, err1 = wnew, errnew
+    success = 1
+    return r, success, wnew, info

@@ -1,16 +1,6 @@
 import numpy as np
-import scipy.linalg
-from .barycentricfcts import *
-
-def riCheb(w, n, syminterp=True):
-    """
-    compute (n,n) rational function which interpolates exp(1j*w*x) at 2n+1 Chebyshev nodes
-    """
-    cheb_nodes_pos = PositiveChebyshevNodes(n)
-    if syminterp:
-        return interpolate_unitarysym(cheb_nodes_pos, w)
-    else:
-        return interpolate_unitary(cheb_nodes_pos, w)
+#import scipy.linalg
+from scipy.special import jv
 
 def PositiveChebyshevNodes(n):
     """
@@ -26,7 +16,7 @@ def eval_ratfrompolchebyshev(x, omega, n):
     return u/np.conjugate(u)
 
 def eval_polynomial_chebyshev(x, t, n):
-    from scipy.special import jv
+    
     """
     # Clenshaw Algorithm
     # polynomial Chebyshev approximation to y ~ exp(1j*t*x) 
@@ -49,3 +39,22 @@ def eval_polynomial_chebyshev(x, t, n):
             dkp1 = dk
     return dk - dkp2
 
+def chebyshev(op,t,v,m):
+    """
+    Clenshaw Algorithm
+    polynomial chebychev approximation return p(A)*v ~ exp(1j*t*A)*v  
+    op(v) = A*v applies operator on v,
+    the eigenvalues of A are assumed to be located in [-1,1]
+    m .. degree of p
+    """
+
+    cm1 = (1j)**m*jv(m,t)
+    dkp1 = cm1 * v
+    dkp2 = 0
+    for k in range(m-1,-1,-1):
+        ck = (1j)**k*jv(k,t)
+        dk = ck * v + 2*op(dkp1) - dkp2
+        if (k>0):
+            dkp2 = dkp1
+            dkp1 = dk
+    return dk - dkp2

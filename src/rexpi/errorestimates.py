@@ -33,9 +33,9 @@ def west(n, eo, type=None, info=0):
         frequency w s.t. the approximation to exp(iwx) of degree (n,n) attains the error objective eo
     """
     if type=='asym':
-        wout = _west_asym(n, w)
+        wout = _west_asym(n, eo)
     elif type=='expe':
-        wout = _west_expe(n, w)
+        wout = _west_expe(n, eo)
     else:
         if (eo < 10**(-2/3*(n-4))):
             wout, type = _west_asym(n, eo), 'asym'

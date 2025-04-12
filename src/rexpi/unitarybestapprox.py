@@ -394,25 +394,30 @@ def riCheb(w, n, syminterp=True):
 #######################################
 
 def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
-         maxiter=None, tolequi=1e-3,
-         info=0,
+         maxiter=None,
+         tolequi=1e-3, # tolerance for error in uniformity stopping criteria
+         info=0, # info=1 to return some information on computation
          tolstagnation=0, # if devation is smaller than this tol and stagnates, break iteration
-         kstag=10,
-         tolerr=0, #  if error is smaller tolerr and phis are alternating
-         optcorrection=None, # adapt nodes
-         npi=None, npigolden=-20, npisample=9,
-         Maehlylog=0.05, useDunhamformula = 1,
-         step_factor=2.2, max_step_size=0.1, hstep=0.1):
+         kstag=10, # parameter to detect stagnation
+         optcorrection=None, # strategy for interpolation nodes correction
+         npi=None, npigolden=-20, npisample=9, # strategy and parameters for finding max error on subintervals
+         Maehlylog=0.05, useDunhamformula = 1, # parameters for Maehly's second method strategy
+         step_factor=2.2, max_step_size=0.1, # parameters for BRASIL's strategy
+         hstep=0.1, # parameters for Franke's strategy
+        ):
     """
     best rational interpolation based (brib) approximation, r(ix) \approx exp(iwx)
     n .. compute (n,n) unitary rational best approximation
     tol .. stop the iteration 
     y or n, mirrored nodes, flat, sorted
     w or tol, tol only used to specify w if needed, no stopping criteria
+    optcorrection... = None for combined strategy
+                     = 1 to always use BRASIL's strategy
+                     = 3 to always use Maehly's strategy
     nodes_pos .. initial interpolation nodes, assuming nodes mirrored around zero, only needs nodes>0
-    info[0] ..  INFO = 0: successful termination
-                INFO < 0: illegal value of one or more arguments -- no computation performed
-                INFO > 0: failure in the course of computation 
+    info[0] ..  success = 0: successful termination
+                success < 0: illegal value of one or more arguments -- no computation performed
+                success > 0: failure in the course of computation 
     """
     success = 1
     ###### set parameters
@@ -436,9 +441,9 @@ def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
     errors = []
     stepsize = np.nan
     devstagnation = False
-    besterr = 2
-    besterrdev = 1
-    besterrnodes = []
+    if (tolstagnation>0): lastdevs = np.zeros(kstag+1)
+    bestdev = 1
+    bestdevnodes = []
     max_err = 2
     phisignsum = n
     lastusedcorrection = 0
@@ -475,24 +480,19 @@ def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
         max_err = local_max.max()
         deviation = 1 - local_max.min() / max_err
 
-        if ((tolstagnation>0)&(max_err<besterr)):
-            besterr = max_err
-            besterrdev = deviation
-            besterrnodes = nodes_pos
-        
-        errors.append((max_err, deviation, lastusedcorrection, npiuse, phisignsum))
+        if ((deviation<tolstagnation)&(deviation<bestdev)):
+            bestdev = deviation
+            bestdevnodes = nodes_pos
+        if (tolstagnation>0): lastdevs[ni%(kstag+1)]=deviation
 
+        errors.append((max_err, deviation, lastusedcorrection, npiuse, phisignsum))
+        
         #### test convergence
         converged = (((deviation <= tolequi)&(phisignsum==0))&(max_err<2))
         if converged:
             success = 0
             break
         if ni == maxiter-1:
-            break
-
-        errsmall = ((phisignsum==0)&(max_err<tolerr))
-        if errsmall:
-            success = 0
             break
 
         #### interpolation nodes correction
@@ -535,8 +535,9 @@ def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
         if devstagnation:
             logging.warning("iter %d. deviation stagnated at delta = %.2e before reaching tol" % (ni,deviation))
             break
-        if ((ni>kstag)&(tolstagnation>0)): devstagnation = (((sum(devs[-kstag:])/kstag)<deviation)&(besterrdev<tolstagnation))
-        if devstagnation: nodes_pos = besterrnodes
+        if ((ni>kstag)&(tolstagnation>0)):
+            devstagnation = ((((sum(lastdevs)-deviation)/kstag)<deviation)&(bestdev<tolstagnation))
+        if devstagnation: nodes_pos = bestdevnodes
 
     #### output
     if info==0: return r

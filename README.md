@@ -1,27 +1,25 @@
 # rexpi [![PyPI version](https://badge.fury.io/py/rexpi.svg)](https://badge.fury.io/py/rexpi)
 *by Tobias Jawecki*
 
-A Python package providing algorithms to compute unitary $(n,n)$-rational best approximations
+A Python package providing an interpolation-based algorithm to compute the unitary $(n,n)$-rational best approximant
 ```math
-r(\mathrm{i} x) \approx \mathrm{e}^{\mathrm{i}\omega x},\qquad\text{for}~~ x\in[-1,1]~~\text{and a frequency}~~ \omega>0.
+r(\mathrm{i} x) \approx \mathrm{e}^{\mathrm{i}\omega x},
 ```
+for $x\in[-1,1]$ and a given *frequency* $\omega>0$.
 Unitary $(n,n)$-rational functions correspond to rational functions $r=p/q$ where $p$ and $q$ are polynomials of degree $\leq n$ with
 ```math
 |r(\mathrm{i} x)|=1,\qquad \text{for}~~ x\in\mathbb{R}.
 ```
-Our focus is best approximations in a Chebyshev sense which minimize the uniform error
+Our focus is best approximation in a Chebyshev sense which minimizes the uniform error
 ```math
 \max_{x\in[-1,1]}| r(\mathrm{i} x) - \mathrm{e}^{\mathrm{i}\omega x} |.
 ```
-
-Besides new code, this package also contains some routines of the [baryrat](https://github.com/c-f-h/baryrat) package[^Ho20], and variants of the AAA-Lawson[^NST18][^NT20] method which is part of the [Chebfun](http://www.chebfun.org/) package[^DHT14].
-
-**This package is still under development. Future versions might have different API. The current version is not fully documented.**
+Besides new code, this package also contains some routines of the [baryrat](https://github.com/c-f-h/baryrat) package[^Ho20].
 
 ## Geting started
 Install the package `python -m pip install rexpi` and run numerical examples from the `/examples` folder.
 
-## Best approximations and equioscillating phase errors
+## Best approximation and equioscillating phase errors
 
 Following a recent work[^JSxx], for $\omega\in(0,\pi(n+1))$ the unitary best approximation to $\mathrm{e}^{\mathrm{i}\omega x}$ is uniquely characterized by an equioscillating phase error. In particular, unitary rational functions are of the form $r(\mathrm{i} x) = \mathrm{e}^{\mathrm{i}g(x)}$ for $x\in\mathbb{R}$ where $g$ is a phase function, and $g(x) - \omega x$ is the phase error of $r(\mathrm{i} x) \approx \mathrm{e}^{\mathrm{i}\omega x}$.
 The phase error equioscillates at $2n+2$ nodes $\eta_1< \eta_2< \ldots <\eta_{2n+2}$ if $g(\eta_j) - \omega \eta_j = (-1)^{j+1} \max_{x\in[-1,1]}| g(x) - \omega x |$ for $j=1,\ldots,2n+2$.
@@ -31,14 +29,14 @@ E.g. the phase and approximation error of the unitary rational best approximatio
 
 ## Content
 
-- The best rational interpolation based `brib` algorithm. This is a modified BRASIL algorithm to compute unitary best approximations to $\mathrm{e}^{\mathrm{i}\omega x}$. `r,_,_ = brib(w, n)` computes an $(n,n)$-rational approximation to $\mathrm{e}^{\mathrm{i}\omega x}$ for a given frequency $\omega$ and degree $n$.
+- The best rational interpolation based `brib` algorithm. This algorithm computes the unitary best approximant by rational interpolation to $\mathrm{e}^{\mathrm{i} \omega x}$ in successively corrected interpolation nodes. An approach similar to the BRASIL algorithm[^Ho20] and Maehly's second method[^Ma63]. `r = brib(w, n)` computes an $(n,n)$-rational approximation to $\mathrm{e}^{\mathrm{i}\omega x}$ for a given frequency $\omega$ and degree $n$.
 ```python
 import numpy as np
 import matplotlib.pyplot as plt
 import rexpi
 n = 10
 w = 10
-r, _, _ = rexpi.brib(w,n)
+r = rexpi.brib(w,n)
 
 # plot the error
 xs = np.linspace(-1,1,5000)
@@ -47,23 +45,15 @@ errmax = np.max(np.abs(err))
 plt.plot(xs,np.abs(err),[-1,1],[errmax,errmax],':')
 ```
 
-- `linearizedLawson`:
-A version of the AAA-Lawson method to approximate $\mathrm{e}^{\mathrm{i}\omega x}$ using Chebyshev nodes as pre-assigned support nodes. The approximation computed by the linearizedLawson algorithm is comparable with the approximation computed by the brib algorithm.
+- Error estimation. The unitary best approximant uniquely exists for $\omega\in(0,(n+1)\pi)$ and algorithms may fail for $\omega$ in the limits $\omega\to0$ (due to limitations of computer arithmetic) or $\omega\to (n+1)\pi$ (due to singularities for $\omega=(n+1)\pi$). The routine `west` provides an estimate for $\omega$ s.t. the error of the unitary best approximant attains a given error objective $\varepsilon>0$. Values of $\varepsilon$ between $10^{-10}$ and $10^{-1}$ cover most practical cases and usually give good results when computing the unitary best approximant for the respective $\omega$.
 ```python
 n = 10
-w = 10
-r, _ = rexpi.linearizedLawson(w=w, n=n, nlawson=100,nx=1000)
+errorojective = 1e-6
+w = rexpi.west(n, errorojective)
+r = rexpi.brib(w,n)
 ```
-
-- Error estimation. Best approximations uniquely exist for $\omega\in(0,\pi(n+1))$ and algorithms may fail when choosing $\omega >\pi(n+1)$. In addition, algorithms may fail if $\omega\approx 0$ due to limits of double precision arithmetic. We suggest using  the routine `buerrest` to determine $\omega$ s.t. the approximation error is bounded by a given tolerance, $\mathrm{tol}>10^{-16}$.
-```python
-n = 10
-tol = 1e-6
-w = rexpi.buerrest_getw(n, tol)
-r, _, _ = rexpi.brib(w,n)
-```
-- The `brib` and `linearizedLawson` algorithms also utilize ideas presented in[^JS23] to preserve unitarity in computer arithmetic and to reduce computational cost. In particular, when computing approximations based on interpolation or on minimizing a linearized error.
-- Applications of unitary best approximations to $\mathrm{e}^{\mathrm{i}\omega x}$ are approximations to the scalar exponential function and approximations to exponentials of skew-Hermitian matrices or the action of such matrix exponentials for numerical time integration, see `examples/ex5_matrixexponential.ipynb`.
+- The `brib` algorithm utilizes ideas presented in[^JS23] to preserve unitarity in computer arithmetic and to reduce computational cost. In a similar way, we use symmetry properties of the approximant to further simplify the routines for rational interpolation and computing poles.
+- Applications of unitary best approximations to $\mathrm{e}^{\mathrm{i}\omega x}$ include approximation to the action of the matrix exponential operator. In particular, for skew-Hermitian matrices whose eigenvalues ​​lie on the imaginary axis. An example of this use case can be found in `examples/ex4_matrixexponential.ipynb`.
 
 ## Citing `rexpi`
 

@@ -57,14 +57,14 @@ r = rexpi.brib(w,n)
 
 ## Citing `rexpi`
 
-A full documentation of this package is currently not available. If you use unitary rational best approximations for your scientific publication, please cite T. Jawecki and P. Singh. Unitary rational best approximations to the exponential function, 2023. preprint at https://arxiv.org/abs/2312.13809.
+If you use this package for your research, please cite T. Jawecki. Computing the unitary best approximant to the exponential function, 2025. preprint at https://arxiv.org/abs/2504.10062.
 ```
-@unpublished{JS23a,
-  author = {Jawecki, T. and Singh, P.},
-  title = {Unitary rational best approximations to the exponential function},
-  eprint = {2312.13809},
-  year = 2023,
-  note = {preprint at https://arxiv.org/abs/2312.13809}
+@unpublished{Ja25,
+  author = {Jawecki, T.},
+  title = {Computing the unitary best approximant to the exponential function},
+  year = 2025,
+  eprint = {2504.10062},
+  note = {preprint at https://arxiv.org/abs/2504.10062}
 }
 ```
 

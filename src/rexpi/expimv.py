@@ -5,7 +5,7 @@ import numpy as np
 
 def evalr_product_scalar(z, poles, r0=1):
     zs = np.asanyarray(z).ravel()
-    mvconj = lambda b : np.conj(zs)*b
+    mvconj = lambda b : zs*b
     mvSI = lambda s,b : b/(zs-s)
     k = len(zs)
     b = np.ones(k)
@@ -15,7 +15,7 @@ def evalr_product_scalar(z, poles, r0=1):
     y.shape = np.shape(z)
     return y
     
-def evalr_product(opconj, opSI, v, poles, r0=1):
+def evalr_product(op, opSI, v, poles, r0=1):
     """
     opconj: v -> conj(A)*v
     opSI: s, v -> inv(A-s)
@@ -26,10 +26,11 @@ def evalr_product(opconj, opSI, v, poles, r0=1):
     assume r is symmetric s.t. constant factor is r0 = r(0)
     r0 = 1 for unitary best approximation with approximation error<2
     """
-    v2 = r0*v
+    n = len(poles)
+    v2 = (-1)**n*r0*v
     for s in poles:
         v1 = opSI(s,v2)
-        v2 = opconj(v1)-np.conj(s)*v1
+        v2 = op(v1)+np.conj(s)*v1
     return v2
 
    

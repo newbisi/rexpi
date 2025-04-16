@@ -401,7 +401,7 @@ def brib(w=10.0, n=6, nodes_pos=None, syminterp=True,
          kstag=10, # parameter to detect stagnation
          optcorrection=None, # strategy for interpolation nodes correction
          npi=None, npigolden=-20, npisample=9, # strategy and parameters for finding max error on subintervals
-         Maehlylog=0.05, useDunhamformula = 1, # parameters for Maehly's second method strategy
+         Maehlylog=0.1, useDunhamformula = 1, # parameters for Maehly's second method strategy
          step_factor=2.2, max_step_size=0.1, # parameters for BRASIL's strategy
          hstep=0.1, # parameters for Franke's strategy
         ):
